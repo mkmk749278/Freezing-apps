@@ -16,16 +16,18 @@ import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
 
 /**
- * RecyclerView adapter for displaying installed apps.
- * Supports single-click toggle and multi-select modes.
+ * RecyclerView adapter for displaying installed apps in the All Apps tab.
+ * Supports:
+ * - "Add to Frozen" / "Remove" button for managing the frozen list
+ * - Multi-select mode for batch adding to frozen list
  *
- * @property onToggleFreeze Callback for freeze/unfreeze toggle
+ * @property onToggleFrozenList Callback for add/remove from frozen list
  * @property onLongClick Callback for entering multi-select mode
  * @property onSelectionChanged Callback when selection state changes
  * @property isMultiSelectMode Whether multi-select mode is active
  */
 class AppAdapter(
-    private val onToggleFreeze: (AppInfo) -> Unit,
+    private val onToggleFrozenList: (AppInfo) -> Unit,
     private val onLongClick: (AppInfo) -> Unit,
     private val onSelectionChanged: (AppInfo) -> Unit
 ) : ListAdapter<AppInfo, AppAdapter.AppViewHolder>(AppDiffCallback()) {
@@ -73,14 +75,10 @@ class AppAdapter(
             if (appInfo.isFrozen) {
                 statusView.text = itemView.context.getString(R.string.status_frozen)
                 statusView.setTextColor(itemView.context.getColor(R.color.frozen_color))
-                toggleButton.text = itemView.context.getString(R.string.unfreeze)
-                toggleButton.setIconResource(R.drawable.ic_unfreeze)
                 cardView.alpha = 0.7f
             } else {
                 statusView.text = itemView.context.getString(R.string.status_active)
                 statusView.setTextColor(itemView.context.getColor(R.color.active_color))
-                toggleButton.text = itemView.context.getString(R.string.freeze)
-                toggleButton.setIconResource(R.drawable.ic_freeze)
                 cardView.alpha = 1.0f
             }
 
@@ -104,12 +102,21 @@ class AppAdapter(
                 checkBox.visibility = View.GONE
                 toggleButton.visibility = View.VISIBLE
 
+                // Show "Add to Frozen" or "Added" / "Remove" based on frozen list membership
+                if (appInfo.isInFrozenList) {
+                    toggleButton.text = itemView.context.getString(R.string.added_to_frozen)
+                    toggleButton.setIconResource(R.drawable.ic_unfreeze)
+                } else {
+                    toggleButton.text = itemView.context.getString(R.string.add_to_frozen)
+                    toggleButton.setIconResource(R.drawable.ic_freeze)
+                }
+
                 toggleButton.setOnClickListener {
-                    onToggleFreeze(appInfo)
+                    onToggleFrozenList(appInfo)
                 }
 
                 cardView.setOnClickListener {
-                    onToggleFreeze(appInfo)
+                    onToggleFrozenList(appInfo)
                 }
             }
 
@@ -132,6 +139,7 @@ class AppAdapter(
         override fun areContentsTheSame(oldItem: AppInfo, newItem: AppInfo): Boolean {
             return oldItem.isFrozen == newItem.isFrozen &&
                     oldItem.isSelected == newItem.isSelected &&
+                    oldItem.isInFrozenList == newItem.isInFrozenList &&
                     oldItem.appName == newItem.appName
         }
     }

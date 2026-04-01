@@ -14,8 +14,8 @@ import com.freezingapps.app.ui.adapter.AppAdapter
 import com.freezingapps.app.ui.viewmodel.AppViewModel
 
 /**
- * Fragment displaying all installed apps with freeze/unfreeze toggles.
- * Provides search, filter chips, and pull-to-refresh functionality.
+ * Fragment displaying all installed apps with "Add to Frozen" functionality.
+ * Provides search, filter chips, multi-select for batch adding, and pull-to-refresh.
  */
 class AllAppsFragment : Fragment() {
 
@@ -40,13 +40,14 @@ class AllAppsFragment : Fragment() {
         setupSearch()
         setupFilterChips()
         setupSwipeRefresh()
+        setupFab()
         observeViewModel()
     }
 
     private fun setupRecyclerView() {
         appAdapter = AppAdapter(
-            onToggleFreeze = { appInfo ->
-                viewModel.toggleFreezeState(appInfo)
+            onToggleFrozenList = { appInfo ->
+                viewModel.toggleFrozenList(appInfo)
             },
             onLongClick = { appInfo ->
                 viewModel.enterMultiSelectMode()
@@ -90,6 +91,16 @@ class AllAppsFragment : Fragment() {
         }
     }
 
+    /**
+     * Setup the FAB for batch adding selected apps to frozen list.
+     * Visible only in multi-select mode.
+     */
+    private fun setupFab() {
+        binding.fabAddToFrozen.setOnClickListener {
+            viewModel.addSelectedToFrozenList()
+        }
+    }
+
     private fun observeViewModel() {
         viewModel.filteredApps.observe(viewLifecycleOwner) { apps ->
             appAdapter.submitList(apps)
@@ -109,6 +120,8 @@ class AllAppsFragment : Fragment() {
 
         viewModel.isMultiSelectMode.observe(viewLifecycleOwner) { isMultiSelect ->
             appAdapter.isMultiSelectMode = isMultiSelect
+            // Show/hide the FAB based on multi-select mode
+            binding.fabAddToFrozen.visibility = if (isMultiSelect) View.VISIBLE else View.GONE
         }
     }
 

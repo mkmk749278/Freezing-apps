@@ -21,16 +21,18 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 
 /**
- * Fragment displaying only currently frozen apps.
+ * Fragment displaying the managed frozen apps list.
  * Default/first tab in the main view.
  *
  * Features:
- * - Search bar with live filtering by app name or package name
- * - Floating action button to freeze all non-frozen apps
- * - Quick unfreeze button on each frozen app
+ * - Shows apps explicitly added by user from All Apps tab
+ * - Each app displays status (Frozen/Active) and toggle button
+ * - Selection checkboxes for Freeze All operation
+ * - Floating action button to freeze all selected apps
+ * - Search bar with live filtering
  * - Biometric/PIN authentication before sensitive actions
  * - Pull-to-refresh for manual reload
- * - Empty state when no frozen apps exist
+ * - Empty state when no apps are in the frozen list
  */
 class FrozenAppsFragment : Fragment() {
 
@@ -62,14 +64,17 @@ class FrozenAppsFragment : Fragment() {
 
     /**
      * Initialize RecyclerView with the frozen app adapter.
-     * Unfreeze actions require authentication when enabled.
+     * Toggle and selection actions require authentication when enabled.
      */
     private fun setupRecyclerView() {
         frozenAppAdapter = FrozenAppAdapter(
-            onUnfreeze = { appInfo ->
+            onToggleFreeze = { appInfo ->
                 performAuthenticatedAction {
-                    viewModel.unfreezeApp(appInfo)
+                    viewModel.toggleFreezeState(appInfo)
                 }
+            },
+            onSelectionChanged = { appInfo ->
+                viewModel.toggleManagedFrozenSelection(appInfo)
             }
         )
 
@@ -96,7 +101,7 @@ class FrozenAppsFragment : Fragment() {
 
     /**
      * Setup the Freeze All floating action button.
-     * Shows a confirmation dialog before freezing all non-frozen apps.
+     * Shows a confirmation dialog before freezing all selected apps.
      * Requires authentication when app lock is enabled.
      */
     private fun setupFreezeAllFab() {
@@ -109,11 +114,12 @@ class FrozenAppsFragment : Fragment() {
 
     /**
      * Show confirmation dialog before executing Freeze All operation.
+     * Only freezes apps that are currently selected (checked) in the Frozen tab.
      */
     private fun showFreezeAllConfirmation() {
         MaterialAlertDialogBuilder(requireContext())
             .setTitle(R.string.freeze_all)
-            .setMessage(R.string.freeze_all_confirm)
+            .setMessage(R.string.freeze_all_selected_confirm)
             .setPositiveButton(R.string.freeze) { _, _ ->
                 viewModel.freezeAllInFrozenTab()
             }
@@ -128,13 +134,13 @@ class FrozenAppsFragment : Fragment() {
     }
 
     /**
-     * Observe ViewModel LiveData for frozen apps and loading state.
-     * Uses filteredFrozenApps to support search filtering.
+     * Observe ViewModel LiveData for managed frozen apps and loading state.
+     * Uses filteredManagedFrozenApps to support search filtering.
      */
     private fun observeViewModel() {
-        viewModel.filteredFrozenApps.observe(viewLifecycleOwner) { frozenApps ->
-            frozenAppAdapter.submitList(frozenApps)
-            updateEmptyState(frozenApps)
+        viewModel.filteredManagedFrozenApps.observe(viewLifecycleOwner) { managedApps ->
+            frozenAppAdapter.submitList(managedApps)
+            updateEmptyState(managedApps)
         }
 
         viewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
@@ -143,7 +149,7 @@ class FrozenAppsFragment : Fragment() {
     }
 
     /**
-     * Update empty state visibility based on frozen apps list.
+     * Update empty state visibility based on managed frozen apps list.
      */
     private fun updateEmptyState(frozenApps: List<AppInfo>) {
         if (frozenApps.isEmpty()) {

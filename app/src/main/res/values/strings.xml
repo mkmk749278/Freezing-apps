@@ -89,6 +89,14 @@
     <!-- Frozen tab -->
     <string name="search_frozen_hint">Search frozen apps…</string>
     <string name="freeze_all">Freeze All</string>
+    <string name="freeze_all_selected_confirm">Are you sure you want to freeze all selected apps in the Frozen list? This will disable them.</string>
+    <string name="no_frozen_apps_managed">No apps in Frozen list</string>
+    <string name="no_frozen_apps_managed_hint">Add apps from the All Apps tab to manage them here</string>
+
+    <!-- Add/Remove from Frozen list -->
+    <string name="add_to_frozen">Add to Frozen</string>
+    <string name="remove_from_frozen">Remove</string>
+    <string name="added_to_frozen">Added</string>
 
     <!-- PIN / Auth -->
     <string name="pin_setup_title">Set App Lock PIN</string>
