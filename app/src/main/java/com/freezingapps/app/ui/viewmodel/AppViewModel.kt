@@ -38,6 +38,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val _frozenApps = MutableLiveData<List<AppInfo>>()
     val frozenApps: LiveData<List<AppInfo>> = _frozenApps
 
+    // Filtered frozen apps (search within frozen tab)
+    private val _filteredFrozenApps = MutableLiveData<List<AppInfo>>()
+    val filteredFrozenApps: LiveData<List<AppInfo>> = _filteredFrozenApps
+
     // Loading state
     private val _isLoading = MutableLiveData(false)
     val isLoading: LiveData<Boolean> = _isLoading
@@ -60,6 +64,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     // Current search query
     private var currentQuery: String = ""
+
+    // Current frozen tab search query
+    private var frozenSearchQuery: String = ""
 
     // Filter: show system apps
     private var showSystemApps: Boolean = true
@@ -338,6 +345,52 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
+     * Search/filter frozen apps by name (for the Frozen Apps tab).
+     * Updates filteredFrozenApps LiveData with matching results.
+     */
+    fun searchFrozenApps(query: String) {
+        frozenSearchQuery = query
+        applyFrozenFilter(_frozenApps.value ?: emptyList())
+    }
+
+    /**
+     * Freeze all non-frozen, non-system apps from the full app list.
+     * Apps already frozen remain unaffected.
+     * System apps are always excluded from bulk freeze for device safety,
+     * regardless of the "show system apps" filter setting.
+     * Used by the FAB in the Frozen Apps tab.
+     */
+    fun freezeAllInFrozenTab() {
+        viewModelScope.launch {
+            val apps = _allApps.value ?: return@launch
+            val toFreeze = apps.filter { !it.isFrozen && !it.isSystemApp }
+            if (toFreeze.isEmpty()) {
+                _message.postValue("No apps to freeze")
+                return@launch
+            }
+
+            Log.i(TAG, "Freeze all (from frozen tab): ${toFreeze.size} apps")
+            _isLoading.postValue(true)
+            var successCount = 0
+            var failCount = 0
+
+            for (app in toFreeze) {
+                if (!repository.isPackageInstalled(app.packageName)) {
+                    failCount++
+                    continue
+                }
+                val result = repository.freezeApp(app)
+                if (result.success) successCount++ else failCount++
+            }
+
+            val message = buildBulkResultMessage("Frozen", successCount, failCount, 0)
+            Log.i(TAG, "Freeze all completed: $message")
+            _message.postValue(message)
+            loadApps()
+        }
+    }
+
+    /**
      * Toggle system apps visibility.
      */
     fun setShowSystemApps(show: Boolean) {
@@ -516,7 +569,26 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         _filteredApps.postValue(filtered)
 
         // Always update frozen apps list for the Frozen Apps tab
-        _frozenApps.postValue(apps.filter { it.isFrozen })
+        val frozen = apps.filter { it.isFrozen }
+        _frozenApps.postValue(frozen)
+        applyFrozenFilter(frozen)
+    }
+
+    /**
+     * Apply search filter to the frozen apps list (Frozen Apps tab only).
+     * Filters by app name or package name, case-insensitive.
+     */
+    private fun applyFrozenFilter(frozenApps: List<AppInfo>) {
+        if (frozenSearchQuery.isBlank()) {
+            _filteredFrozenApps.postValue(frozenApps)
+        } else {
+            val query = frozenSearchQuery.lowercase()
+            val filtered = frozenApps.filter {
+                it.appName.lowercase().contains(query) ||
+                        it.packageName.lowercase().contains(query)
+            }
+            _filteredFrozenApps.postValue(filtered)
+        }
     }
 
     /**

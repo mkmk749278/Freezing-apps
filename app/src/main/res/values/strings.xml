@@ -86,6 +86,33 @@
     <string name="about_description">Freezing Apps allows you to freeze and unfreeze installed apps on your rooted Android device. Frozen apps are disabled and won\'t run in the background.</string>
     <string name="version_info">Version 1.0.0</string>
 
+    <!-- Frozen tab -->
+    <string name="search_frozen_hint">Search frozen apps…</string>
+    <string name="freeze_all">Freeze All</string>
+
+    <!-- PIN / Auth -->
+    <string name="pin_setup_title">Set App Lock PIN</string>
+    <string name="pin_setup_description">Create a 4–8 digit PIN to protect access to Freezing Apps.</string>
+    <string name="enter_pin">Enter PIN</string>
+    <string name="confirm_pin">Confirm PIN</string>
+    <string name="pin_requirements">PIN must be 4–8 digits</string>
+    <string name="set_pin">Set PIN</string>
+    <string name="pin_too_short">PIN must be at least 4 digits</string>
+    <string name="pin_mismatch">PINs do not match</string>
+    <string name="pin_invalid">Invalid PIN format (digits only)</string>
+    <string name="pin_verify_title">Enter PIN</string>
+    <string name="pin_verify_description">Enter your PIN to unlock Freezing Apps.</string>
+    <string name="pin_lock_icon">Lock icon</string>
+    <string name="verify">Verify</string>
+    <string name="incorrect_pin">Incorrect PIN. Try again.</string>
+    <string name="auth_enabled">App lock enabled</string>
+    <string name="auth_disabled">App lock disabled</string>
+
+    <!-- Biometric prompt -->
+    <string name="biometric_subtitle">Verify your identity</string>
+    <string name="biometric_description">Use fingerprint to unlock the app</string>
+    <string name="biometric_use_pin">Use PIN</string>
+
     <!-- Notifications -->
     <string name="notification_success_title">Operation Successful</string>
     <string name="notification_failure_title">Operation Failed</string>

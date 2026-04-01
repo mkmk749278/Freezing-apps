@@ -6,11 +6,13 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.EditText
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import com.freezingapps.app.R
 import com.freezingapps.app.databinding.FragmentSettingsBinding
+import com.freezingapps.app.security.AppLockManager
 import com.freezingapps.app.ui.activity.HistoryActivity
 import com.freezingapps.app.ui.activity.ScheduleActivity
 import com.freezingapps.app.ui.viewmodel.AppViewModel
@@ -21,6 +23,9 @@ import com.google.android.material.snackbar.Snackbar
  * Fragment for app settings and bulk operations.
  * Provides dark mode toggle, bulk freeze/unfreeze,
  * backup, schedule, and advanced options.
+ *
+ * Integrates AppLockManager for PIN setup/removal when
+ * toggling the biometric/PIN authentication switch.
  */
 class SettingsFragment : Fragment() {
 
@@ -28,6 +33,7 @@ class SettingsFragment : Fragment() {
     private val binding get() = _binding!!
 
     private val viewModel: AppViewModel by activityViewModels()
+    private lateinit var appLockManager: AppLockManager
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -40,6 +46,7 @@ class SettingsFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        appLockManager = AppLockManager(requireContext())
         setupBulkOperations()
         setupSchedule()
         setupDarkModeToggle()
@@ -101,20 +108,82 @@ class SettingsFragment : Fragment() {
             startActivity(Intent(requireContext(), HistoryActivity::class.java))
         }
 
-        // Biometric auth toggle
-        val prefs = requireContext().getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-        val isAuthEnabled = prefs.getBoolean("auth_enabled", false)
-        binding.authSwitch.isChecked = isAuthEnabled
+        // Biometric/PIN auth toggle — integrated with AppLockManager
+        binding.authSwitch.isChecked = appLockManager.isAuthEnabled()
         binding.authSwitch.setOnCheckedChangeListener { _, isChecked ->
-            prefs.edit().putBoolean("auth_enabled", isChecked).apply()
+            if (isChecked) {
+                // Require PIN setup before enabling auth
+                showPinSetupDialog()
+            } else {
+                // Disable auth and clear PIN
+                appLockManager.setAuthEnabled(false)
+                showSnackbar(getString(R.string.auth_disabled))
+            }
         }
 
         // Notifications toggle
+        val prefs = requireContext().getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
         val notifEnabled = prefs.getBoolean("notifications_enabled", true)
         binding.notificationsSwitch.isChecked = notifEnabled
         binding.notificationsSwitch.setOnCheckedChangeListener { _, isChecked ->
             prefs.edit().putBoolean("notifications_enabled", isChecked).apply()
         }
+    }
+
+    /**
+     * Show PIN setup dialog when user enables authentication.
+     * Requires entering and confirming a 4-8 digit PIN.
+     * If user cancels, the auth switch reverts to off.
+     */
+    private fun showPinSetupDialog() {
+        val dialogView = layoutInflater.inflate(R.layout.dialog_pin_setup, null)
+        val pinInput = dialogView.findViewById<EditText>(R.id.pinInput)
+        val confirmInput = dialogView.findViewById<EditText>(R.id.confirmPinInput)
+
+        val dialog = MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.pin_setup_title)
+            .setView(dialogView)
+            .setPositiveButton(R.string.set_pin, null) // Set below to prevent auto-dismiss
+            .setNegativeButton(R.string.cancel) { _, _ ->
+                // Revert switch if user cancels
+                binding.authSwitch.isChecked = false
+            }
+            .setOnCancelListener {
+                binding.authSwitch.isChecked = false
+            }
+            .create()
+
+        dialog.setOnShowListener {
+            val positiveButton = dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE)
+            positiveButton.setOnClickListener {
+                val pin = pinInput.text?.toString().orEmpty()
+                val confirmPin = confirmInput.text?.toString().orEmpty()
+
+                when {
+                    pin.length < 4 -> {
+                        pinInput.error = getString(R.string.pin_too_short)
+                    }
+                    pin != confirmPin -> {
+                        confirmInput.error = getString(R.string.pin_mismatch)
+                    }
+                    else -> {
+                        if (appLockManager.setPin(pin)) {
+                            appLockManager.setAuthEnabled(true)
+                            showSnackbar(getString(R.string.auth_enabled))
+                            dialog.dismiss()
+                        } else {
+                            pinInput.error = getString(R.string.pin_invalid)
+                        }
+                    }
+                }
+            }
+        }
+
+        dialog.show()
+    }
+
+    private fun showSnackbar(message: String) {
+        view?.let { Snackbar.make(it, message, Snackbar.LENGTH_SHORT).show() }
     }
 
     override fun onDestroyView() {
