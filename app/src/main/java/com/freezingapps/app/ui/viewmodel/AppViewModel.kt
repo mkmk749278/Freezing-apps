@@ -224,11 +224,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
 
-            val message = buildString {
-                append("Frozen: $successCount")
-                if (failCount > 0) append(", Failed: $failCount")
-                if (skippedCount > 0) append(", Skipped: $skippedCount")
-            }
+            val message = buildBulkResultMessage("Frozen", successCount, failCount, skippedCount)
             Log.i(TAG, "Bulk freeze completed: $message")
             _message.postValue(message)
             exitMultiSelectMode()
@@ -266,11 +262,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
 
-            val message = buildString {
-                append("Unfrozen: $successCount")
-                if (failCount > 0) append(", Failed: $failCount")
-                if (skippedCount > 0) append(", Skipped: $skippedCount")
-            }
+            val message = buildBulkResultMessage("Unfrozen", successCount, failCount, skippedCount)
             Log.i(TAG, "Bulk unfreeze completed: $message")
             _message.postValue(message)
             exitMultiSelectMode()
@@ -391,6 +383,20 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             repository.clearActionLogs()
             _message.postValue("Action history cleared")
         }
+    }
+
+    /**
+     * Build a summary message for bulk operations.
+     */
+    private fun buildBulkResultMessage(
+        action: String,
+        successCount: Int,
+        failCount: Int,
+        skippedCount: Int
+    ): String = buildString {
+        append("$action: $successCount")
+        if (failCount > 0) append(", Failed: $failCount")
+        if (skippedCount > 0) append(", Skipped: $skippedCount")
     }
 
     /**

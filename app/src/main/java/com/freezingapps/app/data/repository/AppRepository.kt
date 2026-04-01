@@ -9,6 +9,7 @@ import com.freezingapps.app.data.model.ActionLog
 import com.freezingapps.app.data.model.AppInfo
 import com.freezingapps.app.root.RootCommandExecutor
 import com.freezingapps.app.root.RootCommandResult
+import com.freezingapps.app.util.PackageUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
@@ -214,13 +215,7 @@ class AppRepository(private val context: Context) {
      * @return true if the package is installed
      */
     fun isPackageInstalled(packageName: String): Boolean {
-        return try {
-            packageManager.getPackageInfo(packageName, 0)
-            true
-        } catch (e: PackageManager.NameNotFoundException) {
-            Log.d(TAG, "Package not found: $packageName")
-            false
-        }
+        return PackageUtils.isPackageInstalled(context, packageName)
     }
 
     /**

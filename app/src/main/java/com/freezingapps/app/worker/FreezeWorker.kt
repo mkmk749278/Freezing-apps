@@ -2,7 +2,6 @@ package com.freezingapps.app.worker
 
 import android.app.NotificationManager
 import android.content.Context
-import android.content.pm.PackageManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.work.CoroutineWorker
@@ -12,6 +11,7 @@ import com.freezingapps.app.R
 import com.freezingapps.app.data.db.AppDatabase
 import com.freezingapps.app.data.model.ActionLog
 import com.freezingapps.app.root.RootCommandExecutor
+import com.freezingapps.app.util.PackageUtils
 
 /**
  * WorkManager worker for scheduled freeze/unfreeze operations.
@@ -87,13 +87,7 @@ class FreezeWorker(
      * Check if a package is installed on the device.
      */
     private fun isPackageInstalled(packageName: String): Boolean {
-        return try {
-            applicationContext.packageManager.getPackageInfo(packageName, 0)
-            true
-        } catch (e: PackageManager.NameNotFoundException) {
-            Log.d(TAG, "Package not found: $packageName")
-            false
-        }
+        return PackageUtils.isPackageInstalled(applicationContext, packageName)
     }
 
     /**

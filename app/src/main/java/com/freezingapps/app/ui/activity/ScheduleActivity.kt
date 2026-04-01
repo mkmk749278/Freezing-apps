@@ -2,7 +2,6 @@ package com.freezingapps.app.ui.activity
 
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
-import android.content.pm.PackageManager
 import android.os.Bundle
 import android.util.Log
 import android.view.MenuItem
@@ -14,6 +13,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import com.freezingapps.app.R
 import com.freezingapps.app.databinding.ActivityScheduleBinding
+import com.freezingapps.app.util.PackageUtils
 import com.freezingapps.app.worker.FreezeWorker
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -118,7 +118,7 @@ class ScheduleActivity : AppCompatActivity() {
             }
 
             // Validate the package exists on the device
-            if (!isPackageInstalled(packageName)) {
+            if (!PackageUtils.isPackageInstalled(this, packageName)) {
                 Log.w(TAG, "Schedule aborted - package not installed: $packageName")
                 binding.packageNameLayout.error = getString(R.string.package_not_installed)
                 Toast.makeText(this, R.string.package_not_installed, Toast.LENGTH_SHORT).show()
@@ -137,18 +137,6 @@ class ScheduleActivity : AppCompatActivity() {
 
             Log.i(TAG, "Scheduling task: action=$action, packageName=$packageName")
             scheduleTask(packageName, action, delayMillis)
-        }
-    }
-
-    /**
-     * Check if a package is installed on the device.
-     */
-    private fun isPackageInstalled(packageName: String): Boolean {
-        return try {
-            packageManager.getPackageInfo(packageName, 0)
-            true
-        } catch (e: PackageManager.NameNotFoundException) {
-            false
         }
     }
 
