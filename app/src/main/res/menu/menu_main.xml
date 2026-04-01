@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <item
+        android:id="@+id/action_search"
+        android:icon="@drawable/ic_search"
+        android:title="@string/search"
+        app:actionViewClass="androidx.appcompat.widget.SearchView"
+        app:showAsAction="ifRoom|collapseActionView" />
+
+    <item
+        android:id="@+id/action_refresh"
+        android:icon="@drawable/ic_refresh"
+        android:title="@string/refresh"
+        app:showAsAction="ifRoom" />
+
+    <item
+        android:id="@+id/action_select_all"
+        android:title="@string/select_all"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_filter_system"
+        android:checkable="true"
+        android:checked="true"
+        android:title="@string/filter_system_apps"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_filter_frozen"
+        android:checkable="true"
+        android:checked="false"
+        android:title="@string/filter_frozen_only"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_history"
+        android:title="@string/action_history"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_schedule"
+        android:title="@string/schedule_task"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_settings"
+        android:title="@string/settings"
+        app:showAsAction="never" />
+
+</menu>

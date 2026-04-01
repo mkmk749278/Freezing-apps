@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Minimal permissions -->
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
+        tools:ignore="QueryAllPackagesPermission" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <application
+        android:name=".FreezingApp"
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.FreezingApps">
+
+        <activity
+            android:name=".ui.activity.MainActivity"
+            android:exported="true"
+            android:theme="@style/Theme.FreezingApps">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".ui.activity.HistoryActivity"
+            android:exported="false"
+            android:theme="@style/Theme.FreezingApps"
+            android:label="@string/action_history" />
+
+        <activity
+            android:name=".ui.activity.ScheduleActivity"
+            android:exported="false"
+            android:theme="@style/Theme.FreezingApps"
+            android:label="@string/schedule_task" />
+
+        <activity
+            android:name=".ui.activity.SettingsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.FreezingApps"
+            android:label="@string/settings" />
+
+    </application>
+
+</manifest>
