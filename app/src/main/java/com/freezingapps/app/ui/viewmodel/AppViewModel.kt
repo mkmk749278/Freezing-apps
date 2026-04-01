@@ -34,6 +34,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val _filteredApps = MutableLiveData<List<AppInfo>>()
     val filteredApps: LiveData<List<AppInfo>> = _filteredApps
 
+    // Frozen apps only (for Frozen Apps tab)
+    private val _frozenApps = MutableLiveData<List<AppInfo>>()
+    val frozenApps: LiveData<List<AppInfo>> = _frozenApps
+
     // Loading state
     private val _isLoading = MutableLiveData(false)
     val isLoading: LiveData<Boolean> = _isLoading
@@ -386,6 +390,88 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
+     * Freeze all non-frozen, non-system apps.
+     */
+    fun freezeAllApps() {
+        viewModelScope.launch {
+            val apps = _allApps.value ?: return@launch
+            val toFreeze = apps.filter { !it.isFrozen && !it.isSystemApp }
+            if (toFreeze.isEmpty()) {
+                _message.postValue("No apps to freeze")
+                return@launch
+            }
+
+            Log.i(TAG, "Freeze all: ${toFreeze.size} apps")
+            _isLoading.postValue(true)
+            var successCount = 0
+            var failCount = 0
+
+            for (app in toFreeze) {
+                if (!repository.isPackageInstalled(app.packageName)) {
+                    failCount++
+                    continue
+                }
+                val result = repository.freezeApp(app)
+                if (result.success) successCount++ else failCount++
+            }
+
+            val message = buildBulkResultMessage("Frozen", successCount, failCount, 0)
+            Log.i(TAG, "Freeze all completed: $message")
+            _message.postValue(message)
+            loadApps()
+        }
+    }
+
+    /**
+     * Unfreeze all frozen apps.
+     */
+    fun unfreezeAllApps() {
+        viewModelScope.launch {
+            val apps = _allApps.value ?: return@launch
+            val toUnfreeze = apps.filter { it.isFrozen }
+            if (toUnfreeze.isEmpty()) {
+                _message.postValue("No apps to unfreeze")
+                return@launch
+            }
+
+            Log.i(TAG, "Unfreeze all: ${toUnfreeze.size} apps")
+            _isLoading.postValue(true)
+            var successCount = 0
+            var failCount = 0
+
+            for (app in toUnfreeze) {
+                if (!repository.isPackageInstalled(app.packageName)) {
+                    failCount++
+                    continue
+                }
+                val result = repository.unfreezeApp(app)
+                if (result.success) successCount++ else failCount++
+            }
+
+            val message = buildBulkResultMessage("Unfrozen", successCount, failCount, 0)
+            Log.i(TAG, "Unfreeze all completed: $message")
+            _message.postValue(message)
+            loadApps()
+        }
+    }
+
+    /**
+     * Backup freeze states and post a message.
+     */
+    fun backupFreezeStates() {
+        viewModelScope.launch {
+            try {
+                val frozenPackages = exportFreezeStates()
+                Log.i(TAG, "Backup completed: ${frozenPackages.size} frozen packages")
+                _message.postValue("Backed up ${frozenPackages.size} frozen apps")
+            } catch (e: Exception) {
+                Log.e(TAG, "Backup failed", e)
+                _message.postValue("Backup failed: ${e.message}")
+            }
+        }
+    }
+
+    /**
      * Build a summary message for bulk operations.
      */
     private fun buildBulkResultMessage(
@@ -408,6 +494,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     /**
      * Apply search and filter criteria to the app list.
+     * Also updates the frozen apps list for the Frozen Apps tab.
      */
     private fun applyFilters(apps: List<AppInfo>) {
         var filtered = apps
@@ -427,6 +514,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         _filteredApps.postValue(filtered)
+
+        // Always update frozen apps list for the Frozen Apps tab
+        _frozenApps.postValue(apps.filter { it.isFrozen })
     }
 
     /**

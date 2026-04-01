@@ -25,6 +25,9 @@
     <color name="white">#FFFFFF</color>
     <color name="black">#000000</color>
 
+    <!-- Tab colors -->
+    <color name="tab_unselected">#80FFFFFF</color>
+
     <!-- Badge background -->
     <color name="badge_bg">#E8EAF6</color>
 </resources>
