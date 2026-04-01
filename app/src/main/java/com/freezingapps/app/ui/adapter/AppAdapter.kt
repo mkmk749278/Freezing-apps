@@ -105,7 +105,7 @@ class AppAdapter(
                 // Show "Add to Frozen" or "Added" / "Remove" based on frozen list membership
                 if (appInfo.isInFrozenList) {
                     toggleButton.text = itemView.context.getString(R.string.added_to_frozen)
-                    toggleButton.setIconResource(R.drawable.ic_unfreeze)
+                    toggleButton.setIconResource(R.drawable.ic_success)
                 } else {
                     toggleButton.text = itemView.context.getString(R.string.add_to_frozen)
                     toggleButton.setIconResource(R.drawable.ic_freeze)
