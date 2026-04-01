@@ -3,6 +3,7 @@ package com.freezingapps.app.ui.activity
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import android.os.Bundle
+import android.util.Log
 import android.view.MenuItem
 import android.widget.ArrayAdapter
 import android.widget.Toast
@@ -12,6 +13,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import com.freezingapps.app.R
 import com.freezingapps.app.databinding.ActivityScheduleBinding
+import com.freezingapps.app.util.PackageUtils
 import com.freezingapps.app.worker.FreezeWorker
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -24,6 +26,10 @@ import java.util.concurrent.TimeUnit
  * Uses WorkManager for reliable task scheduling.
  */
 class ScheduleActivity : AppCompatActivity() {
+
+    companion object {
+        private const val TAG = "ScheduleActivity"
+    }
 
     private lateinit var binding: ActivityScheduleBinding
     private val calendar = Calendar.getInstance()
@@ -111,6 +117,14 @@ class ScheduleActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
 
+            // Validate the package exists on the device
+            if (!PackageUtils.isPackageInstalled(this, packageName)) {
+                Log.w(TAG, "Schedule aborted - package not installed: $packageName")
+                binding.packageNameLayout.error = getString(R.string.package_not_installed)
+                Toast.makeText(this, R.string.package_not_installed, Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
             binding.packageNameLayout.error = null
 
             val action = if (binding.actionSpinner.selectedItemPosition == 0) "freeze" else "unfreeze"
@@ -121,6 +135,7 @@ class ScheduleActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
 
+            Log.i(TAG, "Scheduling task: action=$action, packageName=$packageName")
             scheduleTask(packageName, action, delayMillis)
         }
     }
@@ -143,6 +158,7 @@ class ScheduleActivity : AppCompatActivity() {
         WorkManager.getInstance(this).enqueue(workRequest)
 
         val scheduledTime = dateFormat.format(Date(System.currentTimeMillis() + delayMillis))
+        Log.i(TAG, "Task scheduled: action=$action, packageName=$packageName, at=$scheduledTime")
         Toast.makeText(
             this,
             getString(R.string.task_scheduled, action, packageName, scheduledTime),

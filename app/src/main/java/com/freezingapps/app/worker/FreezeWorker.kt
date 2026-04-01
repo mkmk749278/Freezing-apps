@@ -2,6 +2,7 @@ package com.freezingapps.app.worker
 
 import android.app.NotificationManager
 import android.content.Context
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
@@ -10,6 +11,7 @@ import com.freezingapps.app.R
 import com.freezingapps.app.data.db.AppDatabase
 import com.freezingapps.app.data.model.ActionLog
 import com.freezingapps.app.root.RootCommandExecutor
+import com.freezingapps.app.util.PackageUtils
 
 /**
  * WorkManager worker for scheduled freeze/unfreeze operations.
@@ -23,6 +25,7 @@ class FreezeWorker(
     companion object {
         const val KEY_PACKAGE_NAME = "package_name"
         const val KEY_ACTION = "action"
+        private const val TAG = "FreezeWorker"
         private const val NOTIFICATION_ID = 1001
     }
 
@@ -30,12 +33,37 @@ class FreezeWorker(
         val packageName = inputData.getString(KEY_PACKAGE_NAME) ?: return Result.failure()
         val action = inputData.getString(KEY_ACTION) ?: return Result.failure()
 
+        Log.i(TAG, "Scheduled task started: action=$action, packageName=$packageName")
+
+        // Validate the package exists before executing
+        if (!isPackageInstalled(packageName)) {
+            val error = "Package not installed: $packageName"
+            Log.w(TAG, "Scheduled task aborted - $error")
+
+            // Log the failed action
+            val database = AppDatabase.getInstance(applicationContext)
+            database.actionLogDao().insert(
+                ActionLog(
+                    packageName = packageName,
+                    appName = packageName,
+                    action = action,
+                    success = false,
+                    errorMessage = error
+                )
+            )
+
+            sendNotification(packageName, action, false)
+            return Result.failure()
+        }
+
         // Execute the freeze/unfreeze command
         val result = if (action == "freeze") {
             RootCommandExecutor.freezeApp(packageName)
         } else {
             RootCommandExecutor.unfreezeApp(packageName)
         }
+
+        Log.i(TAG, "Scheduled task completed: action=$action, packageName=$packageName, success=${result.success}")
 
         // Log the action
         val database = AppDatabase.getInstance(applicationContext)
@@ -53,6 +81,13 @@ class FreezeWorker(
         sendNotification(packageName, action, result.success)
 
         return if (result.success) Result.success() else Result.retry()
+    }
+
+    /**
+     * Check if a package is installed on the device.
+     */
+    private fun isPackageInstalled(packageName: String): Boolean {
+        return PackageUtils.isPackageInstalled(applicationContext, packageName)
     }
 
     /**

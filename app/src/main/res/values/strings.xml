@@ -55,6 +55,7 @@
     <string name="schedule_time_label">Scheduled Time</string>
     <string name="change">Change</string>
     <string name="package_name_required">Package name is required</string>
+    <string name="package_not_installed">Package is not installed on this device</string>
     <string name="schedule_time_past">Scheduled time must be in the future</string>
     <string name="task_scheduled">Scheduled: %1$s %2$s at %3$s</string>
 

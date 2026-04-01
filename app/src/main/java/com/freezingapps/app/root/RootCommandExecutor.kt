@@ -1,5 +1,6 @@
 package com.freezingapps.app.root
 
+import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.BufferedReader
@@ -16,6 +17,8 @@ import java.io.InputStreamReader
  * - Only 'pm disable' and 'pm enable' commands are used for freeze/unfreeze
  */
 object RootCommandExecutor {
+
+    private const val TAG = "RootCommandExecutor"
 
     // Regex pattern for valid Android package names
     private val PACKAGE_NAME_REGEX = Regex("^[a-zA-Z][a-zA-Z0-9_]*(\\.[a-zA-Z][a-zA-Z0-9_]*)*$")
@@ -38,9 +41,11 @@ object RootCommandExecutor {
             val output = reader.readText()
             val exitCode = process.waitFor()
 
-            // Root is available if exit code is 0 and output contains "uid=0"
-            exitCode == 0 && output.contains("uid=0")
+            val available = exitCode == 0 && output.contains("uid=0")
+            Log.d(TAG, "Root availability check: $available")
+            available
         } catch (e: Exception) {
+            Log.e(TAG, "Root availability check failed", e)
             false
         }
     }
@@ -52,6 +57,7 @@ object RootCommandExecutor {
      * @return RootCommandResult with the execution result
      */
     suspend fun executeCommand(command: String): RootCommandResult = withContext(Dispatchers.IO) {
+        Log.d(TAG, "Executing root command: $command")
         try {
             val process = Runtime.getRuntime().exec("su")
             val outputStream = DataOutputStream(process.outputStream)
@@ -64,13 +70,16 @@ object RootCommandExecutor {
             val stderr = BufferedReader(InputStreamReader(process.errorStream)).readText()
             val exitCode = process.waitFor()
 
-            RootCommandResult(
+            val result = RootCommandResult(
                 success = exitCode == 0,
                 output = stdout.trim(),
                 error = stderr.trim(),
                 exitCode = exitCode
             )
+            Log.d(TAG, "Command result: success=${result.success}, exitCode=$exitCode, output=${result.output}, error=${result.error}")
+            result
         } catch (e: Exception) {
+            Log.e(TAG, "Root command execution failed: $command", e)
             RootCommandResult(
                 success = false,
                 error = e.message ?: "Unknown error executing root command"
@@ -86,13 +95,17 @@ object RootCommandExecutor {
      * @return RootCommandResult with the operation result
      */
     suspend fun freezeApp(packageName: String): RootCommandResult {
+        Log.i(TAG, "Freeze requested for package: $packageName")
         if (!isValidPackageName(packageName)) {
+            Log.w(TAG, "Freeze rejected - invalid package name format: $packageName")
             return RootCommandResult(
                 success = false,
                 error = "Invalid package name: $packageName"
             )
         }
-        return executeCommand("pm disable-user --user 0 $packageName")
+        val result = executeCommand("pm disable-user --user 0 $packageName")
+        Log.i(TAG, "Freeze result for $packageName: success=${result.success}")
+        return result
     }
 
     /**
@@ -103,13 +116,17 @@ object RootCommandExecutor {
      * @return RootCommandResult with the operation result
      */
     suspend fun unfreezeApp(packageName: String): RootCommandResult {
+        Log.i(TAG, "Unfreeze requested for package: $packageName")
         if (!isValidPackageName(packageName)) {
+            Log.w(TAG, "Unfreeze rejected - invalid package name format: $packageName")
             return RootCommandResult(
                 success = false,
                 error = "Invalid package name: $packageName"
             )
         }
-        return executeCommand("pm enable --user 0 $packageName")
+        val result = executeCommand("pm enable --user 0 $packageName")
+        Log.i(TAG, "Unfreeze result for $packageName: success=${result.success}")
+        return result
     }
 
     /**
