@@ -65,7 +65,7 @@ class MainActivity : AppCompatActivity() {
         val pagerAdapter = MainPagerAdapter(this)
         binding.viewPager.adapter = pagerAdapter
 
-        // Disable swipe to prevent conflicts with SwipeRefreshLayout in fragments
+        // Enable swipe for tab navigation
         binding.viewPager.isUserInputEnabled = true
 
         TabLayoutMediator(binding.tabLayout, binding.viewPager) { tab, position ->

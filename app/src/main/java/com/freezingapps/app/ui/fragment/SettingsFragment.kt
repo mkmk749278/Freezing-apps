@@ -94,7 +94,6 @@ class SettingsFragment : Fragment() {
         // Backup freeze states
         binding.btnBackup.setOnClickListener {
             viewModel.backupFreezeStates()
-            Snackbar.make(binding.root, R.string.backup_complete, Snackbar.LENGTH_SHORT).show()
         }
 
         // View action history
