@@ -1,6 +1,7 @@
 package com.freezingapps.app.ui.viewmodel
 
 import android.app.Application
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -19,6 +20,10 @@ import kotlinx.coroutines.launch
  * and coroutines for background operations.
  */
 class AppViewModel(application: Application) : AndroidViewModel(application) {
+
+    companion object {
+        private const val TAG = "AppViewModel"
+    }
 
     private val repository = AppRepository(application)
 
@@ -69,6 +74,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun checkRootAccess() {
         viewModelScope.launch {
             val available = repository.isRootAvailable()
+            Log.d(TAG, "Root access available: $available")
             _isRootAvailable.postValue(available)
             if (available) {
                 loadApps()
@@ -84,9 +90,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             _isLoading.postValue(true)
             try {
                 val apps = repository.getInstalledApps(showSystemApps)
+                Log.d(TAG, "Loaded ${apps.size} apps (showSystemApps=$showSystemApps)")
                 _allApps.postValue(apps)
                 applyFilters(apps)
             } catch (e: Exception) {
+                Log.e(TAG, "Error loading apps", e)
                 _message.postValue("Error loading apps: ${e.message}")
             } finally {
                 _isLoading.postValue(false)
@@ -96,19 +104,31 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     /**
      * Toggle the freeze state of a single app.
+     * Validates the package before proceeding.
      */
     fun toggleFreezeState(appInfo: AppInfo) {
         viewModelScope.launch {
             try {
+                Log.i(TAG, "Toggle freeze state: packageName=${appInfo.packageName}, currentlyFrozen=${appInfo.isFrozen}")
+
+                if (!repository.isPackageInstalled(appInfo.packageName)) {
+                    val errorMsg = "Package not found: ${appInfo.packageName}"
+                    Log.w(TAG, "Toggle aborted - $errorMsg")
+                    _message.postValue(errorMsg)
+                    return@launch
+                }
+
                 val result = repository.toggleFreezeState(appInfo)
                 if (result.success) {
                     val action = if (appInfo.isFrozen) "Unfrozen" else "Frozen"
                     _message.postValue("$action: ${appInfo.appName}")
                     loadApps() // Refresh the list
                 } else {
+                    Log.w(TAG, "Toggle failed for ${appInfo.packageName}: ${result.error}")
                     _message.postValue("Failed: ${result.error}")
                 }
             } catch (e: Exception) {
+                Log.e(TAG, "Error toggling freeze state for ${appInfo.packageName}", e)
                 _message.postValue("Error: ${e.message}")
             }
         }
@@ -120,14 +140,25 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun freezeApp(appInfo: AppInfo) {
         viewModelScope.launch {
             try {
+                Log.i(TAG, "Freeze app: packageName=${appInfo.packageName}")
+
+                if (!repository.isPackageInstalled(appInfo.packageName)) {
+                    val errorMsg = "Package not found: ${appInfo.packageName}"
+                    Log.w(TAG, "Freeze aborted - $errorMsg")
+                    _message.postValue(errorMsg)
+                    return@launch
+                }
+
                 val result = repository.freezeApp(appInfo)
                 if (result.success) {
                     _message.postValue("Frozen: ${appInfo.appName}")
                     loadApps()
                 } else {
+                    Log.w(TAG, "Freeze failed for ${appInfo.packageName}: ${result.error}")
                     _message.postValue("Failed to freeze: ${result.error}")
                 }
             } catch (e: Exception) {
+                Log.e(TAG, "Error freezing ${appInfo.packageName}", e)
                 _message.postValue("Error: ${e.message}")
             }
         }
@@ -139,14 +170,25 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun unfreezeApp(appInfo: AppInfo) {
         viewModelScope.launch {
             try {
+                Log.i(TAG, "Unfreeze app: packageName=${appInfo.packageName}")
+
+                if (!repository.isPackageInstalled(appInfo.packageName)) {
+                    val errorMsg = "Package not found: ${appInfo.packageName}"
+                    Log.w(TAG, "Unfreeze aborted - $errorMsg")
+                    _message.postValue(errorMsg)
+                    return@launch
+                }
+
                 val result = repository.unfreezeApp(appInfo)
                 if (result.success) {
                     _message.postValue("Unfrozen: ${appInfo.appName}")
                     loadApps()
                 } else {
+                    Log.w(TAG, "Unfreeze failed for ${appInfo.packageName}: ${result.error}")
                     _message.postValue("Failed to unfreeze: ${result.error}")
                 }
             } catch (e: Exception) {
+                Log.e(TAG, "Error unfreezing ${appInfo.packageName}", e)
                 _message.postValue("Error: ${e.message}")
             }
         }
@@ -154,6 +196,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     /**
      * Freeze all selected apps in multi-select mode.
+     * Validates each package before attempting to freeze.
      */
     fun freezeSelected() {
         viewModelScope.launch {
@@ -163,18 +206,31 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 return@launch
             }
 
+            Log.i(TAG, "Bulk freeze: ${selected.size} apps selected")
             _isLoading.postValue(true)
             var successCount = 0
             var failCount = 0
+            var skippedCount = 0
 
             for (app in selected) {
                 if (!app.isFrozen) {
+                    if (!repository.isPackageInstalled(app.packageName)) {
+                        Log.w(TAG, "Bulk freeze skipped - package not installed: ${app.packageName}")
+                        skippedCount++
+                        continue
+                    }
                     val result = repository.freezeApp(app)
                     if (result.success) successCount++ else failCount++
                 }
             }
 
-            _message.postValue("Frozen: $successCount, Failed: $failCount")
+            val message = buildString {
+                append("Frozen: $successCount")
+                if (failCount > 0) append(", Failed: $failCount")
+                if (skippedCount > 0) append(", Skipped: $skippedCount")
+            }
+            Log.i(TAG, "Bulk freeze completed: $message")
+            _message.postValue(message)
             exitMultiSelectMode()
             loadApps()
         }
@@ -182,6 +238,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     /**
      * Unfreeze all selected apps in multi-select mode.
+     * Validates each package before attempting to unfreeze.
      */
     fun unfreezeSelected() {
         viewModelScope.launch {
@@ -191,18 +248,31 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 return@launch
             }
 
+            Log.i(TAG, "Bulk unfreeze: ${selected.size} apps selected")
             _isLoading.postValue(true)
             var successCount = 0
             var failCount = 0
+            var skippedCount = 0
 
             for (app in selected) {
                 if (app.isFrozen) {
+                    if (!repository.isPackageInstalled(app.packageName)) {
+                        Log.w(TAG, "Bulk unfreeze skipped - package not installed: ${app.packageName}")
+                        skippedCount++
+                        continue
+                    }
                     val result = repository.unfreezeApp(app)
                     if (result.success) successCount++ else failCount++
                 }
             }
 
-            _message.postValue("Unfrozen: $successCount, Failed: $failCount")
+            val message = buildString {
+                append("Unfrozen: $successCount")
+                if (failCount > 0) append(", Failed: $failCount")
+                if (skippedCount > 0) append(", Skipped: $skippedCount")
+            }
+            Log.i(TAG, "Bulk unfreeze completed: $message")
+            _message.postValue(message)
             exitMultiSelectMode()
             loadApps()
         }
@@ -302,10 +372,13 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun importFreezeStates(packageNames: List<String>) {
         viewModelScope.launch {
             _isLoading.postValue(true)
+            Log.i(TAG, "Importing freeze states for ${packageNames.size} packages")
             val results = repository.importFreezeStates(packageNames)
             val successCount = results.values.count { it }
             val failCount = results.values.count { !it }
-            _message.postValue("Restored: $successCount, Failed: $failCount")
+            val message = "Restored: $successCount, Failed: $failCount"
+            Log.i(TAG, "Import completed: $message")
+            _message.postValue(message)
             loadApps()
         }
     }

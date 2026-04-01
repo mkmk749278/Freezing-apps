@@ -3,6 +3,7 @@ package com.freezingapps.app.data.repository
 import android.content.Context
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
+import android.util.Log
 import com.freezingapps.app.data.db.AppDatabase
 import com.freezingapps.app.data.model.ActionLog
 import com.freezingapps.app.data.model.AppInfo
@@ -19,10 +20,35 @@ import kotlinx.coroutines.withContext
  * Responsibilities:
  * - Load installed apps from the system package manager
  * - Execute freeze/unfreeze commands via root
+ * - Validate packages before executing commands
  * - Log actions to the local database
  * - Export/import freeze states for backup/restore
  */
 class AppRepository(private val context: Context) {
+
+    companion object {
+        private const val TAG = "AppRepository"
+
+        /**
+         * Critical system packages that should never be frozen as they
+         * can cause the device to become unusable.
+         */
+        private val PROTECTED_SYSTEM_PACKAGES = setOf(
+            "android",
+            "com.android.systemui",
+            "com.android.settings",
+            "com.android.phone",
+            "com.android.server.telecom",
+            "com.android.providers.contacts",
+            "com.android.providers.telephony",
+            "com.android.providers.settings",
+            "com.android.inputdevices",
+            "com.android.shell",
+            "com.android.launcher3",
+            "com.android.packageinstaller",
+            "com.android.permissioncontroller"
+        )
+    }
 
     private val packageManager: PackageManager = context.packageManager
     private val database = AppDatabase.getInstance(context)
@@ -63,24 +89,56 @@ class AppRepository(private val context: Context) {
 
     /**
      * Freeze (disable) an app and log the action.
+     * Validates the package exists and is not a protected system package before freezing.
      *
      * @param appInfo The app to freeze
      * @return RootCommandResult with the operation result
      */
     suspend fun freezeApp(appInfo: AppInfo): RootCommandResult {
+        Log.i(TAG, "Freeze requested: packageName=${appInfo.packageName}, appName=${appInfo.appName}")
+
+        if (!isPackageInstalled(appInfo.packageName)) {
+            val error = "Package not installed: ${appInfo.packageName}"
+            Log.w(TAG, "Freeze aborted - $error")
+            val result = RootCommandResult(success = false, error = error)
+            logAction(appInfo, "freeze", result)
+            return result
+        }
+
+        if (isProtectedSystemApp(appInfo.packageName)) {
+            val error = "Cannot freeze protected system package: ${appInfo.packageName}"
+            Log.w(TAG, "Freeze aborted - $error")
+            val result = RootCommandResult(success = false, error = error)
+            logAction(appInfo, "freeze", result)
+            return result
+        }
+
         val result = RootCommandExecutor.freezeApp(appInfo.packageName)
+        Log.i(TAG, "Freeze completed: packageName=${appInfo.packageName}, success=${result.success}")
         logAction(appInfo, "freeze", result)
         return result
     }
 
     /**
      * Unfreeze (enable) an app and log the action.
+     * Validates the package exists before unfreezing.
      *
      * @param appInfo The app to unfreeze
      * @return RootCommandResult with the operation result
      */
     suspend fun unfreezeApp(appInfo: AppInfo): RootCommandResult {
+        Log.i(TAG, "Unfreeze requested: packageName=${appInfo.packageName}, appName=${appInfo.appName}")
+
+        if (!isPackageInstalled(appInfo.packageName)) {
+            val error = "Package not installed: ${appInfo.packageName}"
+            Log.w(TAG, "Unfreeze aborted - $error")
+            val result = RootCommandResult(success = false, error = error)
+            logAction(appInfo, "unfreeze", result)
+            return result
+        }
+
         val result = RootCommandExecutor.unfreezeApp(appInfo.packageName)
+        Log.i(TAG, "Unfreeze completed: packageName=${appInfo.packageName}, success=${result.success}")
         logAction(appInfo, "unfreeze", result)
         return result
     }
@@ -124,6 +182,7 @@ class AppRepository(private val context: Context) {
 
     /**
      * Import freeze states by freezing specified packages.
+     * Validates each package exists before attempting to freeze.
      *
      * @param packageNames List of package names to freeze
      * @return Map of package name to success status
@@ -131,10 +190,47 @@ class AppRepository(private val context: Context) {
     suspend fun importFreezeStates(packageNames: List<String>): Map<String, Boolean> {
         val results = mutableMapOf<String, Boolean>()
         for (packageName in packageNames) {
+            if (!isPackageInstalled(packageName)) {
+                Log.w(TAG, "Import skipped - package not installed: $packageName")
+                results[packageName] = false
+                continue
+            }
+            if (isProtectedSystemApp(packageName)) {
+                Log.w(TAG, "Import skipped - protected system package: $packageName")
+                results[packageName] = false
+                continue
+            }
             val result = RootCommandExecutor.freezeApp(packageName)
+            Log.i(TAG, "Import freeze: packageName=$packageName, success=${result.success}")
             results[packageName] = result.success
         }
         return results
+    }
+
+    /**
+     * Check if a package is installed on the device using PackageManager.
+     *
+     * @param packageName The package name to check
+     * @return true if the package is installed
+     */
+    fun isPackageInstalled(packageName: String): Boolean {
+        return try {
+            packageManager.getPackageInfo(packageName, 0)
+            true
+        } catch (e: PackageManager.NameNotFoundException) {
+            Log.d(TAG, "Package not found: $packageName")
+            false
+        }
+    }
+
+    /**
+     * Check if a package is a protected system package that should not be frozen.
+     *
+     * @param packageName The package name to check
+     * @return true if the package is a protected system package
+     */
+    private fun isProtectedSystemApp(packageName: String): Boolean {
+        return PROTECTED_SYSTEM_PACKAGES.contains(packageName)
     }
 
     /**
