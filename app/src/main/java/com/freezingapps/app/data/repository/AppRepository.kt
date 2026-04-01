@@ -7,6 +7,7 @@ import android.util.Log
 import com.freezingapps.app.data.db.AppDatabase
 import com.freezingapps.app.data.model.ActionLog
 import com.freezingapps.app.data.model.AppInfo
+import com.freezingapps.app.data.model.FrozenApp
 import com.freezingapps.app.root.RootCommandExecutor
 import com.freezingapps.app.root.RootCommandResult
 import com.freezingapps.app.util.PackageUtils
@@ -24,6 +25,7 @@ import kotlinx.coroutines.withContext
  * - Validate packages before executing commands
  * - Log actions to the local database
  * - Export/import freeze states for backup/restore
+ * - Manage the user's frozen app list (Frozen tab persistence)
  */
 class AppRepository(private val context: Context) {
 
@@ -54,9 +56,10 @@ class AppRepository(private val context: Context) {
     private val packageManager: PackageManager = context.packageManager
     private val database = AppDatabase.getInstance(context)
     private val actionLogDao = database.actionLogDao()
+    private val frozenAppDao = database.frozenAppDao()
 
     /**
-     * Load all installed apps with their current freeze status.
+     * Load all installed apps with their current freeze status and frozen list membership.
      * Excludes this app itself from the list.
      *
      * @param includeSystem Whether to include system apps
@@ -65,6 +68,7 @@ class AppRepository(private val context: Context) {
     suspend fun getInstalledApps(includeSystem: Boolean = true): List<AppInfo> =
         withContext(Dispatchers.IO) {
             val frozenPackages = RootCommandExecutor.getFrozenPackages().toSet()
+            val frozenListPackages = frozenAppDao.getAllPackageNames().toSet()
             val packages = packageManager.getInstalledApplications(
                 PackageManager.GET_META_DATA
             )
@@ -82,11 +86,78 @@ class AppRepository(private val context: Context) {
                             null
                         },
                         isSystemApp = (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0,
-                        isFrozen = frozenPackages.contains(appInfo.packageName)
+                        isFrozen = frozenPackages.contains(appInfo.packageName),
+                        isInFrozenList = frozenListPackages.contains(appInfo.packageName)
                     )
                 }
                 .sortedBy { it.appName.lowercase() }
         }
+
+    /**
+     * Load apps that are in the managed frozen list with their current system freeze status.
+     * Returns only apps that are still installed on the device.
+     *
+     * @return List of AppInfo objects for apps in the frozen list
+     */
+    suspend fun getManagedFrozenApps(): List<AppInfo> = withContext(Dispatchers.IO) {
+        val frozenListPackages = frozenAppDao.getAllPackageNames()
+        val frozenPackages = RootCommandExecutor.getFrozenPackages().toSet()
+
+        frozenListPackages.mapNotNull { packageName ->
+            try {
+                val appInfoSystem = packageManager.getApplicationInfo(
+                    packageName, PackageManager.GET_META_DATA
+                )
+                AppInfo(
+                    packageName = appInfoSystem.packageName,
+                    appName = packageManager.getApplicationLabel(appInfoSystem).toString(),
+                    icon = try {
+                        packageManager.getApplicationIcon(packageName)
+                    } catch (e: Exception) {
+                        null
+                    },
+                    isSystemApp = (appInfoSystem.flags and ApplicationInfo.FLAG_SYSTEM) != 0,
+                    isFrozen = frozenPackages.contains(packageName),
+                    isInFrozenList = true,
+                    isSelected = true // Default: all selected for Freeze All
+                )
+            } catch (e: Exception) {
+                // Package no longer installed, clean up
+                Log.w(TAG, "Package no longer installed, removing from frozen list: $packageName")
+                frozenAppDao.delete(packageName)
+                null
+            }
+        }.sortedBy { it.appName.lowercase() }
+    }
+
+    /**
+     * Add an app to the managed frozen list.
+     */
+    suspend fun addToFrozenList(packageName: String) {
+        Log.i(TAG, "Adding to frozen list: $packageName")
+        frozenAppDao.insert(FrozenApp(packageName))
+    }
+
+    /**
+     * Add multiple apps to the managed frozen list.
+     */
+    suspend fun addAllToFrozenList(packageNames: List<String>) {
+        Log.i(TAG, "Adding ${packageNames.size} apps to frozen list")
+        frozenAppDao.insertAll(packageNames.map { FrozenApp(it) })
+    }
+
+    /**
+     * Remove an app from the managed frozen list.
+     */
+    suspend fun removeFromFrozenList(packageName: String) {
+        Log.i(TAG, "Removing from frozen list: $packageName")
+        frozenAppDao.delete(packageName)
+    }
+
+    /**
+     * Get the frozen list as a reactive Flow.
+     */
+    fun getFrozenListFlow(): Flow<List<FrozenApp>> = frozenAppDao.getAll()
 
     /**
      * Freeze (disable) an app and log the action.

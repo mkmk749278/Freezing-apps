@@ -14,7 +14,8 @@ import kotlinx.coroutines.launch
 
 /**
  * ViewModel for the main app list screen.
- * Manages app data, search/filter state, and freeze/unfreeze operations.
+ * Manages app data, search/filter state, freeze/unfreeze operations,
+ * and the managed frozen apps list.
  *
  * Architecture: MVVM pattern with LiveData for UI observation
  * and coroutines for background operations.
@@ -30,17 +31,24 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     // Full list of installed apps
     private val _allApps = MutableLiveData<List<AppInfo>>()
 
-    // Filtered list displayed in the UI
+    // Filtered list displayed in the All Apps tab UI
     private val _filteredApps = MutableLiveData<List<AppInfo>>()
     val filteredApps: LiveData<List<AppInfo>> = _filteredApps
 
-    // Frozen apps only (for Frozen Apps tab)
+    // Frozen apps only (system-level frozen, for backward compatibility)
     private val _frozenApps = MutableLiveData<List<AppInfo>>()
     val frozenApps: LiveData<List<AppInfo>> = _frozenApps
 
-    // Filtered frozen apps (search within frozen tab)
+    // Filtered frozen apps (search within frozen tab - legacy)
     private val _filteredFrozenApps = MutableLiveData<List<AppInfo>>()
     val filteredFrozenApps: LiveData<List<AppInfo>> = _filteredFrozenApps
+
+    // Managed frozen apps (user-curated list in the Frozen tab)
+    private val _managedFrozenApps = MutableLiveData<List<AppInfo>>()
+
+    // Filtered managed frozen apps (search within Frozen tab)
+    private val _filteredManagedFrozenApps = MutableLiveData<List<AppInfo>>()
+    val filteredManagedFrozenApps: LiveData<List<AppInfo>> = _filteredManagedFrozenApps
 
     // Loading state
     private val _isLoading = MutableLiveData(false)
@@ -54,7 +62,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val _message = MutableLiveData<String>()
     val message: LiveData<String> = _message
 
-    // Multi-select mode
+    // Multi-select mode (All Apps tab)
     private val _isMultiSelectMode = MutableLiveData(false)
     val isMultiSelectMode: LiveData<Boolean> = _isMultiSelectMode
 
@@ -62,7 +70,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val _actionLogs = MutableLiveData<List<ActionLog>>()
     val actionLogs: LiveData<List<ActionLog>> = _actionLogs
 
-    // Current search query
+    // Current search query (All Apps tab)
     private var currentQuery: String = ""
 
     // Current frozen tab search query
@@ -94,7 +102,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * Load all installed apps from the system.
+     * Load all installed apps from the system and the managed frozen list.
      */
     fun loadApps() {
         viewModelScope.launch {
@@ -104,6 +112,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 Log.d(TAG, "Loaded ${apps.size} apps (showSystemApps=$showSystemApps)")
                 _allApps.postValue(apps)
                 applyFilters(apps)
+
+                // Also load the managed frozen apps
+                loadManagedFrozenApps()
             } catch (e: Exception) {
                 Log.e(TAG, "Error loading apps", e)
                 _message.postValue("Error loading apps: ${e.message}")
@@ -112,6 +123,95 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
     }
+
+    /**
+     * Load apps in the managed frozen list from the database.
+     */
+    fun loadManagedFrozenApps() {
+        viewModelScope.launch {
+            try {
+                val managedApps = repository.getManagedFrozenApps()
+                Log.d(TAG, "Loaded ${managedApps.size} managed frozen apps")
+                _managedFrozenApps.postValue(managedApps)
+                applyManagedFrozenFilter(managedApps)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error loading managed frozen apps", e)
+            }
+        }
+    }
+
+    // ================== Frozen List Management ==================
+
+    /**
+     * Add an app to the managed frozen list (Frozen tab).
+     */
+    fun addToFrozenList(appInfo: AppInfo) {
+        viewModelScope.launch {
+            try {
+                repository.addToFrozenList(appInfo.packageName)
+                _message.postValue("Added to Frozen: ${appInfo.appName}")
+                loadApps() // Refresh both tabs
+            } catch (e: Exception) {
+                Log.e(TAG, "Error adding to frozen list: ${appInfo.packageName}", e)
+                _message.postValue("Error: ${e.message}")
+            }
+        }
+    }
+
+    /**
+     * Remove an app from the managed frozen list (Frozen tab).
+     */
+    fun removeFromFrozenList(appInfo: AppInfo) {
+        viewModelScope.launch {
+            try {
+                repository.removeFromFrozenList(appInfo.packageName)
+                _message.postValue("Removed from Frozen: ${appInfo.appName}")
+                loadApps() // Refresh both tabs
+            } catch (e: Exception) {
+                Log.e(TAG, "Error removing from frozen list: ${appInfo.packageName}", e)
+                _message.postValue("Error: ${e.message}")
+            }
+        }
+    }
+
+    /**
+     * Toggle an app's membership in the managed frozen list.
+     */
+    fun toggleFrozenList(appInfo: AppInfo) {
+        if (appInfo.isInFrozenList) {
+            removeFromFrozenList(appInfo)
+        } else {
+            addToFrozenList(appInfo)
+        }
+    }
+
+    /**
+     * Add all selected apps (in multi-select mode) to the frozen list.
+     */
+    fun addSelectedToFrozenList() {
+        viewModelScope.launch {
+            val selected = getSelectedApps()
+            if (selected.isEmpty()) {
+                _message.postValue("No apps selected")
+                return@launch
+            }
+
+            val toAdd = selected.filter { !it.isInFrozenList }
+            if (toAdd.isEmpty()) {
+                _message.postValue("All selected apps are already in the Frozen list")
+                exitMultiSelectMode()
+                return@launch
+            }
+
+            Log.i(TAG, "Adding ${toAdd.size} apps to frozen list")
+            repository.addAllToFrozenList(toAdd.map { it.packageName })
+            _message.postValue("Added ${toAdd.size} apps to Frozen list")
+            exitMultiSelectMode()
+            loadApps()
+        }
+    }
+
+    // ================== Freeze/Unfreeze Operations ==================
 
     /**
      * Toggle the freeze state of a single app.
@@ -204,6 +304,87 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
     }
+
+    /**
+     * Freeze all selected apps in the managed Frozen tab.
+     * Only freezes apps that are currently selected (checked) and not already frozen.
+     * Constraint: Does not affect apps outside the Frozen tab or unselected apps.
+     */
+    fun freezeAllInFrozenTab() {
+        viewModelScope.launch {
+            val apps = _managedFrozenApps.value ?: return@launch
+            val selectedApps = apps.filter { it.isSelected }
+            val toFreeze = selectedApps.filter { !it.isFrozen }
+
+            if (selectedApps.isEmpty()) {
+                _message.postValue("No apps selected")
+                return@launch
+            }
+
+            if (toFreeze.isEmpty()) {
+                _message.postValue("All selected apps are already frozen")
+                return@launch
+            }
+
+            Log.i(TAG, "Freeze all selected in frozen tab: ${toFreeze.size} apps")
+            _isLoading.postValue(true)
+            var successCount = 0
+            var failCount = 0
+
+            for (app in toFreeze) {
+                if (!repository.isPackageInstalled(app.packageName)) {
+                    failCount++
+                    continue
+                }
+                val result = repository.freezeApp(app)
+                if (result.success) successCount++ else failCount++
+            }
+
+            val message = buildBulkResultMessage("Frozen", successCount, failCount, 0)
+            Log.i(TAG, "Freeze all completed: $message")
+            _message.postValue(message)
+            loadApps()
+        }
+    }
+
+    /**
+     * Toggle selection state of a managed frozen app (for Freeze All).
+     */
+    fun toggleManagedFrozenSelection(appInfo: AppInfo) {
+        val apps = _managedFrozenApps.value?.toMutableList() ?: return
+        val index = apps.indexOfFirst { it.packageName == appInfo.packageName }
+        if (index >= 0) {
+            apps[index] = apps[index].copy(isSelected = !apps[index].isSelected)
+            _managedFrozenApps.value = apps
+            applyManagedFrozenFilter(apps)
+        }
+    }
+
+    /**
+     * Select all managed frozen apps.
+     */
+    fun selectAllManagedFrozen() {
+        val apps = _managedFrozenApps.value?.toMutableList() ?: return
+        for (i in apps.indices) {
+            apps[i] = apps[i].copy(isSelected = true)
+        }
+        _managedFrozenApps.value = apps
+        applyManagedFrozenFilter(apps)
+    }
+
+    /**
+     * Deselect all managed frozen apps.
+     */
+    fun deselectAllManagedFrozen() {
+        val apps = _managedFrozenApps.value?.toMutableList() ?: return
+        for (i in apps.indices) {
+            apps[i] = apps[i].copy(isSelected = false)
+        }
+        _managedFrozenApps.value = apps
+        applyManagedFrozenFilter(apps)
+    }
+
+    // ================== Multi-Select (All Apps Tab) ==================
 
     /**
      * Freeze all selected apps in multi-select mode.
@@ -336,6 +517,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         _isMultiSelectMode.value = false
     }
 
+    // ================== Search & Filter ==================
+
     /**
      * Search/filter apps by name or package name.
      */
@@ -346,48 +529,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     /**
      * Search/filter frozen apps by name (for the Frozen Apps tab).
-     * Updates filteredFrozenApps LiveData with matching results.
+     * Updates filteredManagedFrozenApps LiveData with matching results.
      */
     fun searchFrozenApps(query: String) {
         frozenSearchQuery = query
-        applyFrozenFilter(_frozenApps.value ?: emptyList())
-    }
-
-    /**
-     * Freeze all non-frozen, non-system apps from the full app list.
-     * Apps already frozen remain unaffected.
-     * System apps are always excluded from bulk freeze for device safety,
-     * regardless of the "show system apps" filter setting.
-     * Used by the FAB in the Frozen Apps tab.
-     */
-    fun freezeAllInFrozenTab() {
-        viewModelScope.launch {
-            val apps = _allApps.value ?: return@launch
-            val toFreeze = apps.filter { !it.isFrozen && !it.isSystemApp }
-            if (toFreeze.isEmpty()) {
-                _message.postValue("No apps to freeze")
-                return@launch
-            }
-
-            Log.i(TAG, "Freeze all (from frozen tab): ${toFreeze.size} apps")
-            _isLoading.postValue(true)
-            var successCount = 0
-            var failCount = 0
-
-            for (app in toFreeze) {
-                if (!repository.isPackageInstalled(app.packageName)) {
-                    failCount++
-                    continue
-                }
-                val result = repository.freezeApp(app)
-                if (result.success) successCount++ else failCount++
-            }
-
-            val message = buildBulkResultMessage("Frozen", successCount, failCount, 0)
-            Log.i(TAG, "Freeze all completed: $message")
-            _message.postValue(message)
-            loadApps()
-        }
+        applyManagedFrozenFilter(_managedFrozenApps.value ?: emptyList())
     }
 
     /**
@@ -406,41 +552,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         applyFilters(_allApps.value ?: emptyList())
     }
 
-    /**
-     * Export freeze states for backup.
-     *
-     * @return List of currently frozen package names
-     */
-    suspend fun exportFreezeStates(): List<String> = repository.exportFreezeStates()
-
-    /**
-     * Import freeze states from backup.
-     *
-     * @param packageNames List of package names to freeze
-     */
-    fun importFreezeStates(packageNames: List<String>) {
-        viewModelScope.launch {
-            _isLoading.postValue(true)
-            Log.i(TAG, "Importing freeze states for ${packageNames.size} packages")
-            val results = repository.importFreezeStates(packageNames)
-            val successCount = results.values.count { it }
-            val failCount = results.values.count { !it }
-            val message = "Restored: $successCount, Failed: $failCount"
-            Log.i(TAG, "Import completed: $message")
-            _message.postValue(message)
-            loadApps()
-        }
-    }
-
-    /**
-     * Clear action logs.
-     */
-    fun clearActionLogs() {
-        viewModelScope.launch {
-            repository.clearActionLogs()
-            _message.postValue("Action history cleared")
-        }
-    }
+    // ================== Bulk Operations (Settings) ==================
 
     /**
      * Freeze all non-frozen, non-system apps.
@@ -508,6 +620,34 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    // ================== Backup & Logs ==================
+
+    /**
+     * Export freeze states for backup.
+     *
+     * @return List of currently frozen package names
+     */
+    suspend fun exportFreezeStates(): List<String> = repository.exportFreezeStates()
+
+    /**
+     * Import freeze states from backup.
+     *
+     * @param packageNames List of package names to freeze
+     */
+    fun importFreezeStates(packageNames: List<String>) {
+        viewModelScope.launch {
+            _isLoading.postValue(true)
+            Log.i(TAG, "Importing freeze states for ${packageNames.size} packages")
+            val results = repository.importFreezeStates(packageNames)
+            val successCount = results.values.count { it }
+            val failCount = results.values.count { !it }
+            val message = "Restored: $successCount, Failed: $failCount"
+            Log.i(TAG, "Import completed: $message")
+            _message.postValue(message)
+            loadApps()
+        }
+    }
+
     /**
      * Backup freeze states and post a message.
      */
@@ -525,6 +665,18 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
+     * Clear action logs.
+     */
+    fun clearActionLogs() {
+        viewModelScope.launch {
+            repository.clearActionLogs()
+            _message.postValue("Action history cleared")
+        }
+    }
+
+    // ================== Private Helpers ==================
+
+    /**
      * Build a summary message for bulk operations.
      */
     private fun buildBulkResultMessage(
@@ -539,15 +691,15 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * Get currently selected apps.
+     * Get currently selected apps from All Apps list.
      */
     private fun getSelectedApps(): List<AppInfo> {
         return _allApps.value?.filter { it.isSelected } ?: emptyList()
     }
 
     /**
-     * Apply search and filter criteria to the app list.
-     * Also updates the frozen apps list for the Frozen Apps tab.
+     * Apply search and filter criteria to the All Apps list.
+     * Also updates the legacy frozen apps list.
      */
     private fun applyFilters(apps: List<AppInfo>) {
         var filtered = apps
@@ -568,15 +720,14 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
         _filteredApps.postValue(filtered)
 
-        // Always update frozen apps list for the Frozen Apps tab
+        // Update legacy frozen apps list
         val frozen = apps.filter { it.isFrozen }
         _frozenApps.postValue(frozen)
         applyFrozenFilter(frozen)
     }
 
     /**
-     * Apply search filter to the frozen apps list (Frozen Apps tab only).
-     * Filters by app name or package name, case-insensitive.
+     * Apply search filter to the legacy frozen apps list.
      */
     private fun applyFrozenFilter(frozenApps: List<AppInfo>) {
         if (frozenSearchQuery.isBlank()) {
@@ -588,6 +739,23 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                         it.packageName.lowercase().contains(query)
             }
             _filteredFrozenApps.postValue(filtered)
+        }
+    }
+
+    /**
+     * Apply search filter to the managed frozen apps list.
+     * Filters by app name or package name, case-insensitive.
+     */
+    private fun applyManagedFrozenFilter(managedApps: List<AppInfo>) {
+        if (frozenSearchQuery.isBlank()) {
+            _filteredManagedFrozenApps.postValue(managedApps)
+        } else {
+            val query = frozenSearchQuery.lowercase()
+            val filtered = managedApps.filter {
+                it.appName.lowercase().contains(query) ||
+                        it.packageName.lowercase().contains(query)
+            }
+            _filteredManagedFrozenApps.postValue(filtered)
         }
     }
 
