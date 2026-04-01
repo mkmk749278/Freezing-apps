@@ -106,7 +106,7 @@
 
         </LinearLayout>
 
-        <!-- Toggle freeze/unfreeze button -->
+        <!-- Toggle freeze/add to frozen button -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/toggleButton"
             style="@style/Widget.Material3.Button.TonalButton"
@@ -119,7 +119,7 @@
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent"
-            tools:text="Freeze" />
+            tools:text="Add" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
