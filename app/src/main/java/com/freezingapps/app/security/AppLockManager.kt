@@ -7,6 +7,7 @@ import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
+import com.freezingapps.app.R
 import java.security.MessageDigest
 
 /**
@@ -152,10 +153,10 @@ class AppLockManager(context: Context) {
         }
 
         val promptInfo = BiometricPrompt.PromptInfo.Builder()
-            .setTitle("Freezing Apps")
-            .setSubtitle("Verify your identity")
-            .setDescription("Use fingerprint to unlock the app")
-            .setNegativeButtonText("Use PIN")
+            .setTitle(activity.getString(R.string.app_name))
+            .setSubtitle(activity.getString(R.string.biometric_subtitle))
+            .setDescription(activity.getString(R.string.biometric_description))
+            .setNegativeButtonText(activity.getString(R.string.biometric_use_pin))
             .build()
 
         val biometricPrompt = BiometricPrompt(activity, executor, callback)

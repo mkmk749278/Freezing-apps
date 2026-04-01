@@ -356,6 +356,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     /**
      * Freeze all non-frozen, non-system apps from the full app list.
      * Apps already frozen remain unaffected.
+     * System apps are always excluded from bulk freeze for device safety,
+     * regardless of the "show system apps" filter setting.
      * Used by the FAB in the Frozen Apps tab.
      */
     fun freezeAllInFrozenTab() {

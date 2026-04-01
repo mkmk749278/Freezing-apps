@@ -108,6 +108,11 @@
     <string name="auth_enabled">App lock enabled</string>
     <string name="auth_disabled">App lock disabled</string>
 
+    <!-- Biometric prompt -->
+    <string name="biometric_subtitle">Verify your identity</string>
+    <string name="biometric_description">Use fingerprint to unlock the app</string>
+    <string name="biometric_use_pin">Use PIN</string>
+
     <!-- Notifications -->
     <string name="notification_success_title">Operation Successful</string>
     <string name="notification_failure_title">Operation Failed</string>
