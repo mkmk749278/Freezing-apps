@@ -9,14 +9,12 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
 import android.widget.TextView
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import com.freezingapps.app.R
 import com.freezingapps.app.databinding.FragmentFrozenAppsBinding
-import com.freezingapps.app.data.model.AppInfo
 import com.freezingapps.app.security.AppLockManager
 import com.freezingapps.app.ui.compose.FrozenAppsEmptyState
 import com.freezingapps.app.ui.compose.FrozenAppsGrid
@@ -29,11 +27,11 @@ import com.google.android.material.snackbar.Snackbar
  * Default/first tab in the main view.
  *
  * Features:
- * - Displays frozen apps as a grid of icons (like a home screen launcher)
+ * - Displays frozen apps as a minimalistic dark grid with color-coded overlays
+ * - Frozen apps show a semi-transparent blue overlay on their icon
  * - Tapping an app icon unfreezes it and launches it immediately
- * - Each app has a fallback "Unfreeze" button for toggle-only operation
- * - Selection checkboxes for the Freeze All bulk operation
- * - Floating action button to freeze all selected apps
+ * - No checkboxes or tick marks — relies solely on color overlays
+ * - Floating action button to freeze all apps in this tab
  * - Search bar with live filtering
  * - Biometric/PIN authentication before sensitive actions
  * - Pull-to-refresh for manual reload
@@ -80,47 +78,26 @@ class FrozenAppsFragment : Fragment() {
      *
      * Grid behavior:
      * - When the app list is empty, shows an empty state message.
-     * - When apps exist, shows the LazyVerticalGrid with app icons.
+     * - When apps exist, shows a minimalistic dark grid with color-coded overlays.
+     * - Frozen apps show a semi-transparent blue overlay.
      * - Tapping an icon calls unfreezeAndLaunchApp() (auth-gated).
-     * - The fallback "Unfreeze" button calls toggleFreezeState() (auth-gated).
-     * - Checkbox toggles selection for the "Freeze All" FAB operation.
+     * - No checkboxes or buttons — relies solely on color overlays for state.
      */
     private fun setupComposeGrid() {
         binding.composeView.setContent {
-            MaterialTheme {
-                // Observe LiveData as Compose state — recomposes on data change.
-                // This is the bridge between MVVM LiveData and Compose's reactive model.
-                val apps by viewModel.filteredManagedFrozenApps.observeAsState(initial = emptyList())
+            val apps by viewModel.filteredManagedFrozenApps.observeAsState(initial = emptyList())
 
-                if (apps.isEmpty()) {
-                    // Show empty state when no frozen apps are managed
-                    FrozenAppsEmptyState()
-                } else {
-                    // Display the launcher-style grid of frozen app icons.
-                    // Each icon tap triggers unfreeze + launch (authenticated).
-                    FrozenAppsGrid(
-                        apps = apps,
-                        onAppClick = { appInfo ->
-                            // Tap on app icon: authenticate, then unfreeze and launch.
-                            // This provides the primary "tap to use" experience.
-                            performAuthenticatedAction {
-                                viewModel.unfreezeAndLaunchApp(appInfo)
-                            }
-                        },
-                        onToggleFreeze = { appInfo ->
-                            // Fallback button: authenticate, then toggle freeze state.
-                            // Does NOT launch the app — only changes frozen/active status.
-                            performAuthenticatedAction {
-                                viewModel.toggleFreezeState(appInfo)
-                            }
-                        },
-                        onSelectionChanged = { appInfo ->
-                            // Checkbox toggle for Freeze All selection.
-                            // No authentication needed for selection changes.
-                            viewModel.toggleManagedFrozenSelection(appInfo)
+            if (apps.isEmpty()) {
+                FrozenAppsEmptyState()
+            } else {
+                FrozenAppsGrid(
+                    apps = apps,
+                    onAppClick = { appInfo ->
+                        performAuthenticatedAction {
+                            viewModel.unfreezeAndLaunchApp(appInfo)
                         }
-                    )
-                }
+                    }
+                )
             }
         }
     }

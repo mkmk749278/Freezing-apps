@@ -6,16 +6,23 @@ import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
-import androidx.recyclerview.widget.LinearLayoutManager
 import com.freezingapps.app.databinding.FragmentAllAppsBinding
-import com.freezingapps.app.ui.adapter.AppAdapter
+import com.freezingapps.app.ui.compose.AllAppsEmptyState
+import com.freezingapps.app.ui.compose.AllAppsGrid
 import com.freezingapps.app.ui.viewmodel.AppViewModel
 
 /**
- * Fragment displaying all installed apps with "Add to Frozen" functionality.
- * Provides search, filter chips, multi-select for batch adding, and pull-to-refresh.
+ * Fragment displaying all installed apps in a minimalistic grid with color-coded overlays.
+ *
+ * Uses color overlays instead of checkboxes to indicate state:
+ * - Already frozen apps → blue overlay (consistent with Frozen tab)
+ * - Selected apps → teal overlay (distinct selection indicator)
+ * - Tap an app icon → toggle selection for moving to Frozen tab
+ * - FAB "Move to Frozen" → moves all selected apps to the Frozen tab
  */
 class AllAppsFragment : Fragment() {
 
@@ -23,7 +30,6 @@ class AllAppsFragment : Fragment() {
     private val binding get() = _binding!!
 
     private val viewModel: AppViewModel by activityViewModels()
-    private lateinit var appAdapter: AppAdapter
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -36,7 +42,7 @@ class AllAppsFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        setupRecyclerView()
+        setupComposeGrid()
         setupSearch()
         setupFilterChips()
         setupSwipeRefresh()
@@ -44,24 +50,25 @@ class AllAppsFragment : Fragment() {
         observeViewModel()
     }
 
-    private fun setupRecyclerView() {
-        appAdapter = AppAdapter(
-            onToggleFrozenList = { appInfo ->
-                viewModel.toggleFrozenList(appInfo)
-            },
-            onLongClick = { appInfo ->
-                viewModel.enterMultiSelectMode()
-                viewModel.toggleSelection(appInfo)
-            },
-            onSelectionChanged = { appInfo ->
-                viewModel.toggleSelection(appInfo)
-            }
-        )
+    /**
+     * Setup the Jetpack Compose grid inside the ComposeView.
+     * Displays all installed apps with color-coded overlays for frozen and selected states.
+     * Tapping an app toggles its selection for moving to the Frozen tab.
+     */
+    private fun setupComposeGrid() {
+        binding.composeView.setContent {
+            val apps by viewModel.filteredApps.observeAsState(initial = emptyList())
 
-        binding.recyclerView.apply {
-            layoutManager = LinearLayoutManager(requireContext())
-            adapter = appAdapter
-            setHasFixedSize(false)
+            if (apps.isEmpty()) {
+                AllAppsEmptyState()
+            } else {
+                AllAppsGrid(
+                    apps = apps,
+                    onAppClick = { appInfo ->
+                        viewModel.toggleSelection(appInfo)
+                    }
+                )
+            }
         }
     }
 
@@ -92,36 +99,18 @@ class AllAppsFragment : Fragment() {
     }
 
     /**
-     * Setup the FAB for batch adding selected apps to frozen list.
-     * Visible only in multi-select mode.
+     * Setup the FAB for moving selected apps to the Frozen tab.
+     * Always visible — tapping it moves all selected apps to the Frozen list.
      */
     private fun setupFab() {
-        binding.fabAddToFrozen.setOnClickListener {
+        binding.fabMoveToFrozen.setOnClickListener {
             viewModel.addSelectedToFrozenList()
         }
     }
 
     private fun observeViewModel() {
-        viewModel.filteredApps.observe(viewLifecycleOwner) { apps ->
-            appAdapter.submitList(apps)
-
-            if (apps.isEmpty()) {
-                binding.emptyView.visibility = View.VISIBLE
-                binding.recyclerView.visibility = View.GONE
-            } else {
-                binding.emptyView.visibility = View.GONE
-                binding.recyclerView.visibility = View.VISIBLE
-            }
-        }
-
         viewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
             binding.swipeRefresh.isRefreshing = isLoading
-        }
-
-        viewModel.isMultiSelectMode.observe(viewLifecycleOwner) { isMultiSelect ->
-            appAdapter.isMultiSelectMode = isMultiSelect
-            // Show/hide the FAB based on multi-select mode
-            binding.fabAddToFrozen.visibility = if (isMultiSelect) View.VISIBLE else View.GONE
         }
     }
 
