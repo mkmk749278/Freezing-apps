@@ -1,9 +1,7 @@
 package com.freezingapps.app.ui.compose
 
-import android.graphics.drawable.Drawable
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -25,43 +23,47 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.graphics.drawable.toBitmap
 import com.freezingapps.app.R
 import com.freezingapps.app.data.model.AppInfo
 
-/** Semi-transparent blue overlay for frozen state. */
+/** Semi-transparent blue overlay for frozen apps (same as Frozen tab). */
 private val FrozenOverlay = Color(0x401565C0)
 
-/** Transparent overlay for active (unfrozen) state. */
-private val ActiveOverlay = Color.Transparent
+/** Distinct overlay for apps selected to move to Frozen tab. */
+private val SelectedOverlay = Color(0x4000897B)
+
+/** Transparent overlay for default state. */
+private val DefaultOverlay = Color.Transparent
 
 /** Dark surface color used as card background. */
 private val DarkSurface = Color(0xFF1E1E1E)
 
 /**
- * Composable that displays frozen apps in a minimalistic, dark-themed grid layout
- * with color-coded overlays indicating frozen state.
+ * Composable that displays all installed apps in a minimalistic grid layout.
  *
- * No checkboxes or tick marks are used. Frozen apps show a semi-transparent blue
- * overlay that smoothly animates away when the app is temporarily unfrozen.
+ * Uses color-coded overlays to indicate state:
+ * - Already frozen → semi-transparent blue overlay (same as Frozen tab)
+ * - Selected for moving to Frozen tab → distinct teal/green overlay
+ * - Default → no overlay
  *
- * @param apps List of frozen apps to display in the grid
- * @param onAppClick Called when user taps an app icon (unfreeze + launch)
+ * Tapping an app toggles its selection for moving to the Frozen tab.
+ * No checkboxes or tick marks are used.
+ *
+ * @param apps List of all installed apps to display
+ * @param onAppClick Called when user taps an app icon (toggle selection)
  * @param modifier Modifier for the grid container
  */
 @Composable
-fun FrozenAppsGrid(
+fun AllAppsGrid(
     apps: List<AppInfo>,
     onAppClick: (AppInfo) -> Unit,
     modifier: Modifier = Modifier
@@ -77,7 +79,7 @@ fun FrozenAppsGrid(
             items = apps,
             key = { it.packageName }
         ) { appInfo ->
-            FrozenAppGridItem(
+            AllAppsGridItem(
                 appInfo = appInfo,
                 onAppClick = onAppClick
             )
@@ -86,27 +88,36 @@ fun FrozenAppsGrid(
 }
 
 /**
- * Individual grid cell for a frozen app with color-coded overlay.
+ * Individual grid cell for an app in the All Apps tab.
  *
- * Frozen apps display a semi-transparent blue overlay on the icon that
- * smoothly animates to transparent when temporarily unfrozen. A slight
- * elevation provides depth. No checkboxes or buttons are shown.
+ * Overlay logic:
+ * - Frozen apps → blue overlay (consistent with Frozen tab)
+ * - Selected apps (not frozen) → teal overlay (distinct selection color)
+ * - Default → no overlay
  *
- * @param appInfo The frozen app data to display
- * @param onAppClick Called when the app icon is tapped (unfreeze + launch)
+ * @param appInfo The app data to display
+ * @param onAppClick Called when the app is tapped (toggle selection)
  */
 @Composable
-fun FrozenAppGridItem(
+fun AllAppsGridItem(
     appInfo: AppInfo,
     onAppClick: (AppInfo) -> Unit
 ) {
     val overlayColor by animateColorAsState(
-        targetValue = if (appInfo.isFrozen) FrozenOverlay else ActiveOverlay,
+        targetValue = when {
+            appInfo.isInFrozenList -> FrozenOverlay
+            appInfo.isSelected -> SelectedOverlay
+            else -> DefaultOverlay
+        },
         animationSpec = tween(durationMillis = 300),
-        label = "frozenOverlay"
+        label = "allAppsOverlay"
     )
 
-    val nameColor = if (appInfo.isFrozen) Color(0xFFB0BEC5) else Color(0xFFE0E0E0)
+    val nameColor = when {
+        appInfo.isInFrozenList -> Color(0xFFB0BEC5)
+        appInfo.isSelected -> Color(0xFFA5D6A7)
+        else -> Color(0xFFE0E0E0)
+    }
 
     Card(
         modifier = Modifier
@@ -132,7 +143,7 @@ fun FrozenAppGridItem(
                     contentDescription = appInfo.appName,
                     modifier = Modifier.size(56.dp)
                 )
-                // Semi-transparent overlay indicating frozen state
+                // Overlay indicating frozen or selected state
                 Box(
                     modifier = Modifier
                         .matchParentSize()
@@ -158,38 +169,10 @@ fun FrozenAppGridItem(
 }
 
 /**
- * Renders an app icon from an Android Drawable.
- * Converts the Drawable to a Bitmap for Compose Image rendering.
- * Falls back to a default icon if the drawable is null.
+ * Empty state composable shown when no apps match the current filter.
  */
 @Composable
-fun AppIconImage(
-    icon: Drawable?,
-    contentDescription: String,
-    modifier: Modifier = Modifier
-) {
-    if (icon != null) {
-        val bitmap = remember(icon) { icon.toBitmap(128, 128).asImageBitmap() }
-        Image(
-            bitmap = bitmap,
-            contentDescription = contentDescription,
-            modifier = modifier
-        )
-    } else {
-        Icon(
-            painter = painterResource(id = R.drawable.ic_app_default),
-            contentDescription = contentDescription,
-            modifier = modifier,
-            tint = Color(0xFFB0BEC5)
-        )
-    }
-}
-
-/**
- * Empty state composable shown when no frozen apps are in the list.
- */
-@Composable
-fun FrozenAppsEmptyState(modifier: Modifier = Modifier) {
+fun AllAppsEmptyState(modifier: Modifier = Modifier) {
     Box(
         modifier = modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
@@ -199,21 +182,15 @@ fun FrozenAppsEmptyState(modifier: Modifier = Modifier) {
         ) {
             Icon(
                 painter = painterResource(id = R.drawable.ic_empty),
-                contentDescription = "No frozen apps",
+                contentDescription = "No apps found",
                 modifier = Modifier.size(80.dp),
                 tint = Color(0xFF757575)
             )
             Text(
-                text = "No apps in Frozen list",
+                text = "No apps found",
                 style = MaterialTheme.typography.bodyLarge,
                 modifier = Modifier.padding(top = 16.dp),
                 color = Color(0xFFBDBDBD)
-            )
-            Text(
-                text = "Add apps from the All Apps tab to manage them here",
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.padding(top = 8.dp),
-                color = Color(0xFF757575)
             )
         }
     }

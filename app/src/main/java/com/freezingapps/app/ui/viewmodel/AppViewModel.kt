@@ -369,27 +369,21 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * Freeze all selected apps in the managed Frozen tab.
-     * Only freezes apps that are currently selected (checked) and not already frozen.
-     * Constraint: Does not affect apps outside the Frozen tab or unselected apps.
+     * Freeze all apps in the managed Frozen tab.
+     * Freezes all apps that are not already frozen.
+     * No selection needed — freezes every app in this tab.
      */
     fun freezeAllInFrozenTab() {
         viewModelScope.launch {
             val apps = _managedFrozenApps.value ?: return@launch
-            val selectedApps = apps.filter { it.isSelected }
-            val toFreeze = selectedApps.filter { !it.isFrozen }
-
-            if (selectedApps.isEmpty()) {
-                _message.postValue("No apps selected")
-                return@launch
-            }
+            val toFreeze = apps.filter { !it.isFrozen }
 
             if (toFreeze.isEmpty()) {
-                _message.postValue("All selected apps are already frozen")
+                _message.postValue("All apps are already frozen")
                 return@launch
             }
 
-            Log.i(TAG, "Freeze all selected in frozen tab: ${toFreeze.size} apps")
+            Log.i(TAG, "Freeze all in frozen tab: ${toFreeze.size} apps")
             _isLoading.postValue(true)
             var successCount = 0
             var failCount = 0

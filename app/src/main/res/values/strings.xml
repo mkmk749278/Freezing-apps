@@ -95,6 +95,7 @@
 
     <!-- Add/Remove from Frozen list -->
     <string name="add_to_frozen">Add to Frozen</string>
+    <string name="move_to_frozen">Move to Frozen</string>
     <string name="remove_from_frozen">Remove</string>
     <string name="added_to_frozen">Added</string>
 
