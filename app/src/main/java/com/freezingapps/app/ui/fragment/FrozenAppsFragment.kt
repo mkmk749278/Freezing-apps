@@ -195,6 +195,8 @@ class FrozenAppsFragment : Fragment() {
     private fun observeAppLaunch() {
         viewModel.appToLaunch.observe(viewLifecycleOwner) { packageName ->
             if (packageName.isNullOrBlank()) return@observe
+            // Clear the signal immediately to prevent re-launch on rotation
+            viewModel.clearAppToLaunch()
             launchApp(packageName)
         }
     }

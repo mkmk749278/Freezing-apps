@@ -62,9 +62,20 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val _message = MutableLiveData<String>()
     val message: LiveData<String> = _message
 
-    // Signal to the UI to launch an app after unfreezing (package name)
-    private val _appToLaunch = MutableLiveData<String>()
-    val appToLaunch: LiveData<String> = _appToLaunch
+    // Signal to the UI to launch an app after unfreezing (package name).
+    // Uses nullable type so we can reset it after consumption, preventing
+    // re-launch on configuration changes (e.g., screen rotation).
+    private val _appToLaunch = MutableLiveData<String?>()
+    val appToLaunch: LiveData<String?> = _appToLaunch
+
+    /**
+     * Clear the app launch signal after the UI has consumed it.
+     * Must be called by the Fragment after launching the app to prevent
+     * re-triggering on configuration changes.
+     */
+    fun clearAppToLaunch() {
+        _appToLaunch.value = null
+    }
 
     // Multi-select mode (All Apps tab)
     private val _isMultiSelectMode = MutableLiveData(false)

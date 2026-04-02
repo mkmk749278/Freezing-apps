@@ -21,6 +21,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -203,7 +204,8 @@ fun AppIconImage(
     if (icon != null) {
         // Convert Android Drawable to Compose-compatible ImageBitmap.
         // toBitmap() creates a software bitmap; asImageBitmap() wraps it for Compose.
-        val bitmap = icon.toBitmap(128, 128).asImageBitmap()
+        // remember(icon) caches the bitmap to avoid recreation on every recomposition.
+        val bitmap = remember(icon) { icon.toBitmap(128, 128).asImageBitmap() }
         Image(
             bitmap = bitmap,
             contentDescription = contentDescription,
