@@ -62,6 +62,21 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val _message = MutableLiveData<String>()
     val message: LiveData<String> = _message
 
+    // Signal to the UI to launch an app after unfreezing (package name).
+    // Uses nullable type so we can reset it after consumption, preventing
+    // re-launch on configuration changes (e.g., screen rotation).
+    private val _appToLaunch = MutableLiveData<String?>()
+    val appToLaunch: LiveData<String?> = _appToLaunch
+
+    /**
+     * Clear the app launch signal after the UI has consumed it.
+     * Must be called by the Fragment after launching the app to prevent
+     * re-triggering on configuration changes.
+     */
+    fun clearAppToLaunch() {
+        _appToLaunch.value = null
+    }
+
     // Multi-select mode (All Apps tab)
     private val _isMultiSelectMode = MutableLiveData(false)
     val isMultiSelectMode: LiveData<Boolean> = _isMultiSelectMode
@@ -300,6 +315,54 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error unfreezing ${appInfo.packageName}", e)
+                _message.postValue("Error: ${e.message}")
+            }
+        }
+    }
+
+    /**
+     * Unfreeze a frozen app and signal that it should be launched immediately.
+     * If the app is already active (not frozen), signals launch directly.
+     *
+     * This is used in the Frozen Apps grid when the user taps an app icon:
+     * 1. If frozen: unfreeze via root command, then signal launch.
+     * 2. If active: signal launch immediately (no unfreeze needed).
+     *
+     * The actual launch intent is created in the Fragment/UI layer since
+     * it requires Context access for PackageManager.getLaunchIntentForPackage().
+     *
+     * @param appInfo The app to unfreeze and launch
+     */
+    fun unfreezeAndLaunchApp(appInfo: AppInfo) {
+        viewModelScope.launch {
+            try {
+                Log.i(TAG, "Unfreeze and launch: packageName=${appInfo.packageName}, isFrozen=${appInfo.isFrozen}")
+
+                if (!repository.isPackageInstalled(appInfo.packageName)) {
+                    val errorMsg = "Package not found: ${appInfo.packageName}"
+                    Log.w(TAG, "Unfreeze-and-launch aborted - $errorMsg")
+                    _message.postValue(errorMsg)
+                    return@launch
+                }
+
+                // Step 1: Unfreeze the app if it is currently frozen
+                if (appInfo.isFrozen) {
+                    val result = repository.unfreezeApp(appInfo)
+                    if (!result.success) {
+                        Log.w(TAG, "Unfreeze failed for ${appInfo.packageName}: ${result.error}")
+                        _message.postValue("Failed to unfreeze: ${result.error}")
+                        return@launch
+                    }
+                    Log.i(TAG, "Successfully unfrozen: ${appInfo.packageName}")
+                }
+
+                // Step 2: Signal the UI layer to launch the app
+                _appToLaunch.postValue(appInfo.packageName)
+
+                // Step 3: Refresh the app list to reflect the new state
+                loadApps()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error in unfreeze-and-launch for ${appInfo.packageName}", e)
                 _message.postValue("Error: ${e.message}")
             }
         }
