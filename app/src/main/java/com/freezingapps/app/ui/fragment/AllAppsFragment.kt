@@ -54,6 +54,7 @@ class AllAppsFragment : Fragment() {
      * Setup the Jetpack Compose grid inside the ComposeView.
      * Displays all installed apps with color-coded overlays for frozen and selected states.
      * Tapping an app toggles its selection for moving to the Frozen tab.
+     * Long-pressing a frozen app temporarily unfreezes it.
      */
     private fun setupComposeGrid() {
         binding.composeView.setContent {
@@ -66,6 +67,11 @@ class AllAppsFragment : Fragment() {
                     apps = apps,
                     onAppClick = { appInfo ->
                         viewModel.toggleSelection(appInfo)
+                    },
+                    onAppLongClick = { appInfo ->
+                        if (appInfo.isFrozen) {
+                            viewModel.unfreezeApp(appInfo)
+                        }
                     }
                 )
             }

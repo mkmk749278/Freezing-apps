@@ -369,6 +369,34 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
+     * Uninstall an app via root command.
+     *
+     * @param appInfo The app to uninstall
+     */
+    fun uninstallApp(appInfo: AppInfo) {
+        viewModelScope.launch {
+            try {
+                Log.i(TAG, "Uninstall app: packageName=${appInfo.packageName}")
+                _isLoading.postValue(true)
+
+                val result = repository.uninstallApp(appInfo)
+                if (result.success) {
+                    _message.postValue("Uninstalled: ${appInfo.appName}")
+                } else {
+                    Log.w(TAG, "Uninstall failed for ${appInfo.packageName}: ${result.error}")
+                    _message.postValue("Failed to uninstall: ${result.error}")
+                }
+                loadApps()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error uninstalling ${appInfo.packageName}", e)
+                _message.postValue("Error: ${e.message}")
+            } finally {
+                _isLoading.postValue(false)
+            }
+        }
+    }
+
+    /**
      * Freeze all apps in the managed Frozen tab.
      * Freezes all apps that are not already frozen.
      * No selection needed — freezes every app in this tab.

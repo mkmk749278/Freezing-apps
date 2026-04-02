@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Freezing Apps</string>
+    <string name="app_name">My Apps</string>
 
     <!-- Tabs -->
     <string name="tab_frozen">Frozen</string>
@@ -83,7 +83,7 @@
     <string name="backup_complete">Freeze states backed up</string>
     <string name="notifications">Notifications</string>
     <string name="about">About</string>
-    <string name="about_description">Freezing Apps allows you to freeze and unfreeze installed apps on your rooted Android device. Frozen apps are disabled and won\'t run in the background.</string>
+    <string name="about_description">My Apps allows you to freeze and unfreeze installed apps on your rooted Android device. Frozen apps are disabled and won\'t run in the background.</string>
     <string name="version_info">Version 1.0.0</string>
 
     <!-- Frozen tab -->
@@ -101,7 +101,7 @@
 
     <!-- PIN / Auth -->
     <string name="pin_setup_title">Set App Lock PIN</string>
-    <string name="pin_setup_description">Create a 4–8 digit PIN to protect access to Freezing Apps.</string>
+    <string name="pin_setup_description">Create a 4–8 digit PIN to protect access to My Apps.</string>
     <string name="enter_pin">Enter PIN</string>
     <string name="confirm_pin">Confirm PIN</string>
     <string name="pin_requirements">PIN must be 4–8 digits</string>
@@ -110,7 +110,7 @@
     <string name="pin_mismatch">PINs do not match</string>
     <string name="pin_invalid">Invalid PIN format (digits only)</string>
     <string name="pin_verify_title">Enter PIN</string>
-    <string name="pin_verify_description">Enter your PIN to unlock Freezing Apps.</string>
+    <string name="pin_verify_description">Enter your PIN to unlock My Apps.</string>
     <string name="pin_lock_icon">Lock icon</string>
     <string name="verify">Verify</string>
     <string name="incorrect_pin">Incorrect PIN. Try again.</string>
@@ -127,4 +127,10 @@
     <string name="notification_failure_title">Operation Failed</string>
     <string name="notification_success_message">Successfully %1$s: %2$s</string>
     <string name="notification_failure_message">Failed to %1$s: %2$s</string>
+
+    <!-- Context menu -->
+    <string name="uninstall">Uninstall</string>
+    <string name="uninstall_confirm">Are you sure you want to uninstall %1$s? This cannot be undone.</string>
+    <string name="uninstall_success">Uninstalled: %1$s</string>
+    <string name="uninstall_failed">Failed to uninstall: %1$s</string>
 </resources>
