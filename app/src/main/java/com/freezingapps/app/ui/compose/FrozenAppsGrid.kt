@@ -36,6 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -192,7 +193,7 @@ fun FrozenAppGridItem(
         ) {
             if (appInfo.isFrozen) {
                 DropdownMenuItem(
-                    text = { Text("Unfreeze") },
+                    text = { Text(stringResource(R.string.unfreeze)) },
                     onClick = {
                         showMenu = false
                         onUnfreezeApp(appInfo)
@@ -200,7 +201,7 @@ fun FrozenAppGridItem(
                 )
             } else {
                 DropdownMenuItem(
-                    text = { Text("Freeze") },
+                    text = { Text(stringResource(R.string.freeze)) },
                     onClick = {
                         showMenu = false
                         onFreezeApp(appInfo)
@@ -208,7 +209,7 @@ fun FrozenAppGridItem(
                 )
             }
             DropdownMenuItem(
-                text = { Text("Uninstall") },
+                text = { Text(stringResource(R.string.uninstall)) },
                 onClick = {
                     showMenu = false
                     onUninstallApp(appInfo)
