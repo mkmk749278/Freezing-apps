@@ -2,8 +2,9 @@ package com.freezingapps.app.ui.compose
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -52,16 +53,18 @@ import com.freezingapps.app.ui.compose.GridColors.SelectedTextColor
  * - Default → no overlay
  *
  * Tapping an app toggles its selection for moving to the Frozen tab.
- * No checkboxes or tick marks are used.
+ * Long-pressing a frozen app temporarily unfreezes it.
  *
  * @param apps List of all installed apps to display
  * @param onAppClick Called when user taps an app icon (toggle selection)
+ * @param onAppLongClick Called when user long-presses an app (temporary unfreeze)
  * @param modifier Modifier for the grid container
  */
 @Composable
 fun AllAppsGrid(
     apps: List<AppInfo>,
     onAppClick: (AppInfo) -> Unit,
+    onAppLongClick: (AppInfo) -> Unit,
     modifier: Modifier = Modifier
 ) {
     LazyVerticalGrid(
@@ -77,7 +80,8 @@ fun AllAppsGrid(
         ) { appInfo ->
             AllAppsGridItem(
                 appInfo = appInfo,
-                onAppClick = onAppClick
+                onAppClick = onAppClick,
+                onAppLongClick = onAppLongClick
             )
         }
     }
@@ -91,13 +95,18 @@ fun AllAppsGrid(
  * - Selected apps (not frozen) → teal overlay (distinct selection color)
  * - Default → no overlay
  *
+ * Long press on a frozen app triggers temporary unfreeze.
+ *
  * @param appInfo The app data to display
  * @param onAppClick Called when the app is tapped (toggle selection)
+ * @param onAppLongClick Called when the app is long-pressed (temporary unfreeze)
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun AllAppsGridItem(
     appInfo: AppInfo,
-    onAppClick: (AppInfo) -> Unit
+    onAppClick: (AppInfo) -> Unit,
+    onAppLongClick: (AppInfo) -> Unit
 ) {
     val overlayColor by animateColorAsState(
         targetValue = when {
@@ -118,7 +127,10 @@ fun AllAppsGridItem(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onAppClick(appInfo) },
+            .combinedClickable(
+                onClick = { onAppClick(appInfo) },
+                onLongClick = { onAppLongClick(appInfo) }
+            ),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = DarkSurface),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)

@@ -21,6 +21,7 @@
         <activity
             android:name=".ui.activity.MainActivity"
             android:exported="true"
+            android:excludeFromRecents="true"
             android:theme="@style/Theme.FreezingApps">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

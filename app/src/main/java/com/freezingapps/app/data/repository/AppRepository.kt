@@ -155,6 +155,40 @@ class AppRepository(private val context: Context) {
     }
 
     /**
+     * Uninstall an app via root command and remove it from the frozen list.
+     * Validates the package exists and is not a protected system package.
+     *
+     * @param appInfo The app to uninstall
+     * @return RootCommandResult with the operation result
+     */
+    suspend fun uninstallApp(appInfo: AppInfo): RootCommandResult {
+        Log.i(TAG, "Uninstall requested: packageName=${appInfo.packageName}, appName=${appInfo.appName}")
+
+        if (!isPackageInstalled(appInfo.packageName)) {
+            val error = "Package not installed: ${appInfo.packageName}"
+            Log.w(TAG, "Uninstall aborted - $error")
+            return RootCommandResult(success = false, error = error)
+        }
+
+        if (isProtectedSystemApp(appInfo.packageName)) {
+            val error = "Cannot uninstall protected system package: ${appInfo.packageName}"
+            Log.w(TAG, "Uninstall aborted - $error")
+            return RootCommandResult(success = false, error = error)
+        }
+
+        val result = RootCommandExecutor.uninstallApp(appInfo.packageName)
+        Log.i(TAG, "Uninstall completed: packageName=${appInfo.packageName}, success=${result.success}")
+        logAction(appInfo, "uninstall", result)
+
+        // Remove from frozen list if present
+        if (result.success) {
+            frozenAppDao.delete(appInfo.packageName)
+        }
+
+        return result
+    }
+
+    /**
      * Get the frozen list as a reactive Flow.
      */
     fun getFrozenListFlow(): Flow<List<FrozenApp>> = frozenAppDao.getAll()

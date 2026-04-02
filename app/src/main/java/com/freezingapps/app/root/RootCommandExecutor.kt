@@ -142,6 +142,27 @@ object RootCommandExecutor {
     }
 
     /**
+     * Uninstall an app using 'pm uninstall' command.
+     * Validates the package name before execution.
+     *
+     * @param packageName The package name to uninstall
+     * @return RootCommandResult with the operation result
+     */
+    suspend fun uninstallApp(packageName: String): RootCommandResult {
+        Log.i(TAG, "Uninstall requested for package: $packageName")
+        if (!isValidPackageName(packageName)) {
+            Log.w(TAG, "Uninstall rejected - invalid package name format: $packageName")
+            return RootCommandResult(
+                success = false,
+                error = "Invalid package name: $packageName"
+            )
+        }
+        val result = executeCommand("pm uninstall --user 0 $packageName")
+        Log.i(TAG, "Uninstall result for $packageName: success=${result.success}")
+        return result
+    }
+
+    /**
      * Get a list of all disabled (frozen) packages.
      *
      * @return List of frozen package names

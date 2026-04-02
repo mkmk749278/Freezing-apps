@@ -14,6 +14,7 @@ import androidx.compose.runtime.livedata.observeAsState
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import com.freezingapps.app.R
+import com.freezingapps.app.data.model.AppInfo
 import com.freezingapps.app.databinding.FragmentFrozenAppsBinding
 import com.freezingapps.app.security.AppLockManager
 import com.freezingapps.app.ui.compose.FrozenAppsEmptyState
@@ -81,6 +82,7 @@ class FrozenAppsFragment : Fragment() {
      * - When apps exist, shows a minimalistic dark grid with color-coded overlays.
      * - Frozen apps show a semi-transparent blue overlay.
      * - Tapping an icon calls unfreezeAndLaunchApp() (auth-gated).
+     * - Long-pressing opens a context menu: Freeze / Unfreeze / Uninstall.
      * - No checkboxes or buttons — relies solely on color overlays for state.
      */
     private fun setupComposeGrid() {
@@ -95,6 +97,21 @@ class FrozenAppsFragment : Fragment() {
                     onAppClick = { appInfo ->
                         performAuthenticatedAction {
                             viewModel.unfreezeAndLaunchApp(appInfo)
+                        }
+                    },
+                    onFreezeApp = { appInfo ->
+                        performAuthenticatedAction {
+                            viewModel.freezeApp(appInfo)
+                        }
+                    },
+                    onUnfreezeApp = { appInfo ->
+                        performAuthenticatedAction {
+                            viewModel.unfreezeApp(appInfo)
+                        }
+                    },
+                    onUninstallApp = { appInfo ->
+                        performAuthenticatedAction {
+                            showUninstallConfirmation(appInfo)
                         }
                     }
                 )
@@ -139,6 +156,22 @@ class FrozenAppsFragment : Fragment() {
             .setMessage(R.string.freeze_all_selected_confirm)
             .setPositiveButton(R.string.freeze) { _, _ ->
                 viewModel.freezeAllInFrozenTab()
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    /**
+     * Show confirmation dialog before uninstalling an app.
+     *
+     * @param appInfo The app to uninstall
+     */
+    private fun showUninstallConfirmation(appInfo: AppInfo) {
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.uninstall)
+            .setMessage(getString(R.string.uninstall_confirm, appInfo.appName))
+            .setPositiveButton(R.string.uninstall) { _, _ ->
+                viewModel.uninstallApp(appInfo)
             }
             .setNegativeButton(R.string.cancel, null)
             .show()
