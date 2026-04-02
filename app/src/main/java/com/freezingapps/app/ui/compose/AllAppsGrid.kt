@@ -26,7 +26,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -34,18 +33,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.freezingapps.app.R
 import com.freezingapps.app.data.model.AppInfo
-
-/** Semi-transparent blue overlay for frozen apps (same as Frozen tab). */
-private val FrozenOverlay = Color(0x401565C0)
-
-/** Distinct overlay for apps selected to move to Frozen tab. */
-private val SelectedOverlay = Color(0x4000897B)
-
-/** Transparent overlay for default state. */
-private val DefaultOverlay = Color.Transparent
-
-/** Dark surface color used as card background. */
-private val DarkSurface = Color(0xFF1E1E1E)
+import com.freezingapps.app.ui.compose.GridColors.ActiveOverlay
+import com.freezingapps.app.ui.compose.GridColors.ActiveTextColor
+import com.freezingapps.app.ui.compose.GridColors.DarkSurface
+import com.freezingapps.app.ui.compose.GridColors.EmptyStateColor
+import com.freezingapps.app.ui.compose.GridColors.EmptyStateTextColor
+import com.freezingapps.app.ui.compose.GridColors.FrozenOverlay
+import com.freezingapps.app.ui.compose.GridColors.FrozenTextColor
+import com.freezingapps.app.ui.compose.GridColors.SelectedOverlay
+import com.freezingapps.app.ui.compose.GridColors.SelectedTextColor
 
 /**
  * Composable that displays all installed apps in a minimalistic grid layout.
@@ -107,16 +103,16 @@ fun AllAppsGridItem(
         targetValue = when {
             appInfo.isInFrozenList -> FrozenOverlay
             appInfo.isSelected -> SelectedOverlay
-            else -> DefaultOverlay
+            else -> ActiveOverlay
         },
         animationSpec = tween(durationMillis = 300),
         label = "allAppsOverlay"
     )
 
     val nameColor = when {
-        appInfo.isInFrozenList -> Color(0xFFB0BEC5)
-        appInfo.isSelected -> Color(0xFFA5D6A7)
-        else -> Color(0xFFE0E0E0)
+        appInfo.isInFrozenList -> FrozenTextColor
+        appInfo.isSelected -> SelectedTextColor
+        else -> ActiveTextColor
     }
 
     Card(
@@ -184,13 +180,13 @@ fun AllAppsEmptyState(modifier: Modifier = Modifier) {
                 painter = painterResource(id = R.drawable.ic_empty),
                 contentDescription = "No apps found",
                 modifier = Modifier.size(80.dp),
-                tint = Color(0xFF757575)
+                tint = EmptyStateColor
             )
             Text(
                 text = "No apps found",
                 style = MaterialTheme.typography.bodyLarge,
                 modifier = Modifier.padding(top = 16.dp),
-                color = Color(0xFFBDBDBD)
+                color = EmptyStateTextColor
             )
         }
     }

@@ -29,7 +29,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
@@ -39,15 +38,14 @@ import androidx.compose.ui.unit.sp
 import androidx.core.graphics.drawable.toBitmap
 import com.freezingapps.app.R
 import com.freezingapps.app.data.model.AppInfo
-
-/** Semi-transparent blue overlay for frozen state. */
-private val FrozenOverlay = Color(0x401565C0)
-
-/** Transparent overlay for active (unfrozen) state. */
-private val ActiveOverlay = Color.Transparent
-
-/** Dark surface color used as card background. */
-private val DarkSurface = Color(0xFF1E1E1E)
+import com.freezingapps.app.ui.compose.GridColors.ActiveOverlay
+import com.freezingapps.app.ui.compose.GridColors.ActiveTextColor
+import com.freezingapps.app.ui.compose.GridColors.DarkSurface
+import com.freezingapps.app.ui.compose.GridColors.EmptyStateColor
+import com.freezingapps.app.ui.compose.GridColors.EmptyStateTextColor
+import com.freezingapps.app.ui.compose.GridColors.FrozenOverlay
+import com.freezingapps.app.ui.compose.GridColors.FrozenTextColor
+import com.freezingapps.app.ui.compose.GridColors.MutedIconTint
 
 /**
  * Composable that displays frozen apps in a minimalistic, dark-themed grid layout
@@ -106,7 +104,7 @@ fun FrozenAppGridItem(
         label = "frozenOverlay"
     )
 
-    val nameColor = if (appInfo.isFrozen) Color(0xFFB0BEC5) else Color(0xFFE0E0E0)
+    val nameColor = if (appInfo.isFrozen) FrozenTextColor else ActiveTextColor
 
     Card(
         modifier = Modifier
@@ -180,7 +178,7 @@ fun AppIconImage(
             painter = painterResource(id = R.drawable.ic_app_default),
             contentDescription = contentDescription,
             modifier = modifier,
-            tint = Color(0xFFB0BEC5)
+            tint = MutedIconTint
         )
     }
 }
@@ -201,19 +199,19 @@ fun FrozenAppsEmptyState(modifier: Modifier = Modifier) {
                 painter = painterResource(id = R.drawable.ic_empty),
                 contentDescription = "No frozen apps",
                 modifier = Modifier.size(80.dp),
-                tint = Color(0xFF757575)
+                tint = EmptyStateColor
             )
             Text(
                 text = "No apps in Frozen list",
                 style = MaterialTheme.typography.bodyLarge,
                 modifier = Modifier.padding(top = 16.dp),
-                color = Color(0xFFBDBDBD)
+                color = EmptyStateTextColor
             )
             Text(
                 text = "Add apps from the All Apps tab to manage them here",
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(top = 8.dp),
-                color = Color(0xFF757575)
+                color = EmptyStateColor
             )
         }
     }
